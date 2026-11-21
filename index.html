@@ -19,6 +19,7 @@
       --live-red: #ff0033;
       --live-glow: rgba(255, 0, 51, 0.28);
       --upcoming-blue: #3ea6ff;
+      --member-green: #2ba640;
       --tag-accent: #a78bfa;
       --border-subtle: #2c2c2e;
     }
@@ -428,6 +429,10 @@
       transform: translateY(-2px);
     }
 
+    .card.is-member:not(.is-live) {
+      border-color: rgba(43, 166, 64, 0.55);
+    }
+
     .card.is-live {
       border: 2px solid var(--live-red);
       box-shadow: 0 0 10px var(--live-glow);
@@ -448,10 +453,16 @@
       display: block;
     }
 
-    .badge {
+    .badge-group {
       position: absolute;
       bottom: 6px;
       left: 6px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .badge {
       padding: 2px 6px;
       border-radius: 4px;
       font-size: 0.68rem;
@@ -484,6 +495,12 @@
       border: 1px solid rgba(62, 166, 255, 0.4);
     }
 
+    .badge-member {
+      background-color: rgba(15, 15, 15, 0.9);
+      color: #4ade80;
+      border: 1px solid rgba(43, 166, 64, 0.65);
+    }
+
     @keyframes pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.25; }
@@ -501,6 +518,10 @@
       font-size: 0.86rem;
       font-weight: 700;
       color: var(--upcoming-blue);
+    }
+
+    .card.is-member .schedule-time {
+      color: #4ade80;
     }
 
     .card.is-live .schedule-time {
@@ -626,7 +647,7 @@
 
   <script>
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzKEjdp1EPCZ_8jCAvaGfTdOA9kCVBnau0XdnR9-uuj7kYlAbqp-jRQrAouMQnUSqPs/exec';
-    const LOCAL_STORAGE_KEY = 'yt_live_schedule_cache_v3';
+    const LOCAL_STORAGE_KEY = 'yt_live_schedule_cache_v4';
 
     let currentPayload = { lives: [], lastUpdated: '未更新', tagOrder: [] };
     let selectedTag = 'ALL';
@@ -709,7 +730,6 @@
       filterPanel.style.display = 'flex';
       toggleBtn.style.display = '';
 
-      // 1. タグ一覧（スプレッドシートの上の行から登場した順にソート）
       const tagSet = new Set();
       allLives.forEach(item => {
         parseTags(item.tags).forEach(t => tagSet.add(t));
@@ -741,7 +761,6 @@
         tagRow.style.display = 'none';
       }
 
-      // 2. チャンネル一覧（スプレッドシートの行の上から順にソート）
       const livesForChannelList = selectedTag === 'ALL'
         ? allLives
         : allLives.filter(item => parseTags(item.tags).includes(selectedTag));
@@ -795,15 +814,19 @@
 
     function createCardElement(item, timeOnlyForUpcoming) {
       const isLive = item.status === 'live';
+      const isMember = Boolean(item.isMember);
       const card = document.createElement('a');
-      card.className = `card ${isLive ? 'is-live' : ''}`;
+      card.className = `card ${isLive ? 'is-live' : ''} ${isMember ? 'is-member' : ''}`.trim();
       card.href = `https://www.youtube.com/watch?v=${encodeURIComponent(item.videoId || '')}`;
       card.target = '_blank';
       card.rel = 'noopener noreferrer';
 
-      const badgeHtml = isLive
+      const statusBadge = isLive
         ? `<span class="badge badge-live">LIVE</span>`
         : `<span class="badge badge-upcoming">配信予定</span>`;
+      const memberBadge = isMember
+        ? `<span class="badge badge-member">メン限</span>`
+        : '';
 
       const displayTimeStr = String(item.displayTime || '');
       let timeLabel = '';
@@ -824,7 +847,10 @@
       card.innerHTML = `
         <div class="thumb-wrap">
           <img src="${escapeHtml(item.thumbnail)}" alt="" loading="lazy">
-          ${badgeHtml}
+          <div class="badge-group">
+            ${statusBadge}
+            ${memberBadge}
+          </div>
         </div>
         <div class="card-body">
           <div class="schedule-time">${escapeHtml(timeLabel)}</div>
@@ -888,9 +914,6 @@
         return;
       }
 
-      // ==========================================
-      // モードA：チャンネル順（シートの上から順 ＋ 枠内は日時順）
-      // ==========================================
       if (sortMode === 'channel') {
         const groupedByChannel = new Map();
         const channelOrderMap = new Map();
@@ -941,9 +964,6 @@
         return;
       }
 
-      // ==========================================
-      // モードB：開始時間順（現在配信中 ＋ 日付ごとの枠）
-      // ==========================================
       if (liveItems.length > 0) {
         const liveSection = document.createElement('section');
         liveSection.className = 'section-box live-section';
