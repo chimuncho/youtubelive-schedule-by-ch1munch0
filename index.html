@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex, nofollow">
-  <title>推しスケ！</title>
+  <title>推しスケ</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2224%22 fill=%22%23ff0033%22/><polygon points=%2238,28 74,50 38,72%22 fill=%22%23ffffff%22/><circle cx=%2278%22 cy=%2222%22 r=%2210%22 fill=%22%23ffd60a%22/></svg>">
   <style>
     :root {
@@ -574,7 +574,7 @@
     <div class="header-inner">
       <div class="header-title">
         <span class="dot"></span>
-        <span>推しスケ！</span>
+        <span>推しスケ</span>
       </div>
       <div class="meta-info">
         <span id="last-updated">更新: --/-- --:--</span>
@@ -620,12 +620,11 @@
     </div>
   </main>
 
-  <!-- GAS直接アクセス時の初期データ埋め込み枠 -->
   <script id="initial-data" type="application/json"><?!= typeof initialData !== 'undefined' ? initialData : '' ?></script>
 
   <script>
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzKEjdp1EPCZ_8jCAvaGfTdOA9kCVBnau0XdnR9-uuj7kYlAbqp-jRQrAouMQnUSqPs/exec';
-    const LOCAL_STORAGE_KEY = 'yt_live_schedule_cache_v1';
+    const LOCAL_STORAGE_KEY = 'yt_live_schedule_cache_v2';
 
     let currentPayload = { lives: [], lastUpdated: '未更新' };
     let selectedTag = 'ALL';
@@ -732,13 +731,15 @@
         tagRow.style.display = 'none';
       }
 
+      // フィルター用表示名（C列設定値、未設定時は正式チャンネル名）を抽出
       const livesForChannelList = selectedTag === 'ALL'
         ? allLives
         : allLives.filter(item => parseTags(item.tags).includes(selectedTag));
 
       const channelSet = new Set();
       livesForChannelList.forEach(item => {
-        if (item.channelTitle) channelSet.add(item.channelTitle);
+        const chLabel = item.filterName || item.channelTitle;
+        if (chLabel) channelSet.add(chLabel);
       });
       const channelsList = Array.from(channelSet).sort((a, b) => a.localeCompare(b, 'ja'));
 
@@ -771,7 +772,9 @@
       const copied = [...items];
       if (sortMode === 'channel') {
         copied.sort((a, b) => {
-          const cmp = String(a.channelTitle).localeCompare(String(b.channelTitle), 'ja');
+          const nameA = String(a.filterName || a.channelTitle);
+          const nameB = String(b.filterName || b.channelTitle);
+          const cmp = nameA.localeCompare(nameB, 'ja');
           return cmp !== 0 ? cmp : (a.startTimeMs - b.startTimeMs);
         });
       } else {
@@ -840,7 +843,8 @@
         if (selectedTag !== 'ALL' && !parseTags(item.tags).includes(selectedTag)) {
           return false;
         }
-        if (selectedChannel !== 'ALL' && item.channelTitle !== selectedChannel) {
+        const chLabel = item.filterName || item.channelTitle;
+        if (selectedChannel !== 'ALL' && chLabel !== selectedChannel) {
           return false;
         }
         return true;
@@ -977,7 +981,6 @@
           }
           const data = await response.json();
           render(data);
-          // 次回の0秒表示用にブラウザへ保存
           try {
             localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
           } catch (storageErr) {}
@@ -994,12 +997,10 @@
       }
     }
 
-    // 起動時の高速初期化処理
     (function init() {
       const initialEl = document.getElementById('initial-data');
       const rawInitial = initialEl ? initialEl.textContent.trim() : '';
 
-      // 1. GAS直接アクセス時：HTML埋め込みデータがあれば0秒で即描画
       if (rawInitial.startsWith('{')) {
         try {
           render(JSON.parse(rawInitial));
@@ -1007,7 +1008,6 @@
         } catch (e) {}
       }
 
-      // 2. GitHub Pagesアクセス時：ブラウザに前回データがあれば0秒で即描画し、裏で最新化
       let hasLocalCache = false;
       try {
         const cachedStr = localStorage.getItem(LOCAL_STORAGE_KEY);
