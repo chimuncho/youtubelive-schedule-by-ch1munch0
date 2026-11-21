@@ -496,8 +496,8 @@
     }
 
     .schedule-time {
-      font-size: 0.74rem;
-      font-weight: 600;
+      font-size: 0.86rem;
+      font-weight: 700;
       color: var(--upcoming-blue);
     }
 
@@ -506,8 +506,8 @@
     }
 
     .video-title {
-      font-size: 0.84rem;
-      font-weight: 600;
+      font-size: 0.76rem;
+      font-weight: 500;
       color: var(--text-main);
       display: -webkit-box;
       -webkit-line-clamp: 2;
@@ -731,7 +731,6 @@
         tagRow.style.display = 'none';
       }
 
-      // フィルター用表示名（C列設定値、未設定時は正式チャンネル名）を抽出
       const livesForChannelList = selectedTag === 'ALL'
         ? allLives
         : allLives.filter(item => parseTags(item.tags).includes(selectedTag));
