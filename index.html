@@ -626,9 +626,9 @@
 
   <script>
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzKEjdp1EPCZ_8jCAvaGfTdOA9kCVBnau0XdnR9-uuj7kYlAbqp-jRQrAouMQnUSqPs/exec';
-    const LOCAL_STORAGE_KEY = 'yt_live_schedule_cache_v2';
+    const LOCAL_STORAGE_KEY = 'yt_live_schedule_cache_v3';
 
-    let currentPayload = { lives: [], lastUpdated: '未更新' };
+    let currentPayload = { lives: [], lastUpdated: '未更新', tagOrder: [] };
     let selectedTag = 'ALL';
     let selectedChannel = 'ALL';
     let sortMode = 'time';
@@ -709,11 +709,19 @@
       filterPanel.style.display = 'flex';
       toggleBtn.style.display = '';
 
+      // 1. タグ一覧（スプレッドシートの上の行から登場した順にソート）
       const tagSet = new Set();
       allLives.forEach(item => {
         parseTags(item.tags).forEach(t => tagSet.add(t));
       });
-      const tagsList = Array.from(tagSet);
+      const masterTagOrder = Array.isArray(currentPayload.tagOrder) ? currentPayload.tagOrder : [];
+      const tagsList = Array.from(tagSet).sort((a, b) => {
+        const idxA = masterTagOrder.indexOf(a);
+        const idxB = masterTagOrder.indexOf(b);
+        const orderA = idxA === -1 ? 9999 : idxA;
+        const orderB = idxB === -1 ? 9999 : idxB;
+        return orderA - orderB;
+      });
 
       if (selectedTag !== 'ALL' && !tagSet.has(selectedTag)) {
         selectedTag = 'ALL';
@@ -733,18 +741,25 @@
         tagRow.style.display = 'none';
       }
 
+      // 2. チャンネル一覧（スプレッドシートの行の上から順にソート）
       const livesForChannelList = selectedTag === 'ALL'
         ? allLives
         : allLives.filter(item => parseTags(item.tags).includes(selectedTag));
 
-      const channelSet = new Set();
+      const channelOrderMap = new Map();
       livesForChannelList.forEach(item => {
         const chLabel = item.filterName || item.channelTitle;
-        if (chLabel) channelSet.add(chLabel);
+        if (!chLabel) return;
+        const order = (typeof item.sortOrder === 'number') ? item.sortOrder : 9999;
+        if (!channelOrderMap.has(chLabel) || order < channelOrderMap.get(chLabel)) {
+          channelOrderMap.set(chLabel, order);
+        }
       });
-      const channelsList = Array.from(channelSet).sort((a, b) => a.localeCompare(b, 'ja'));
+      const channelsList = Array.from(channelOrderMap.keys()).sort((a, b) => {
+        return channelOrderMap.get(a) - channelOrderMap.get(b);
+      });
 
-      if (selectedChannel !== 'ALL' && !channelSet.has(selectedChannel)) {
+      if (selectedChannel !== 'ALL' && !channelOrderMap.has(selectedChannel)) {
         selectedChannel = 'ALL';
       }
 
@@ -874,10 +889,11 @@
       }
 
       // ==========================================
-      // モードA：チャンネル順（チャンネルごとの枠内に日時順表示）
+      // モードA：チャンネル順（シートの上から順 ＋ 枠内は日時順）
       // ==========================================
       if (sortMode === 'channel') {
         const groupedByChannel = new Map();
+        const channelOrderMap = new Map();
 
         filteredLives.forEach(item => {
           const chKey = item.filterName || item.channelTitle || '不明';
@@ -885,9 +901,16 @@
             groupedByChannel.set(chKey, []);
           }
           groupedByChannel.get(chKey).push(item);
+
+          const order = (typeof item.sortOrder === 'number') ? item.sortOrder : 9999;
+          if (!channelOrderMap.has(chKey) || order < channelOrderMap.get(chKey)) {
+            channelOrderMap.set(chKey, order);
+          }
         });
 
-        const sortedChannelKeys = Array.from(groupedByChannel.keys()).sort((a, b) => a.localeCompare(b, 'ja'));
+        const sortedChannelKeys = Array.from(groupedByChannel.keys()).sort((a, b) => {
+          return channelOrderMap.get(a) - channelOrderMap.get(b);
+        });
 
         sortedChannelKeys.forEach(chName => {
           const itemsInChannel = sortChronologically(groupedByChannel.get(chName));
@@ -908,7 +931,6 @@
           const chGrid = document.createElement('div');
           chGrid.className = 'grid';
           itemsInChannel.forEach(item => {
-            // 日付跨ぎで並ぶため、開始予定もフル日時（11/21(土) 20:00）を表示
             chGrid.appendChild(createCardElement(item, false));
           });
 
