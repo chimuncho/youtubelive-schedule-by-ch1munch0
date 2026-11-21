@@ -358,6 +358,7 @@
       background-color: var(--live-red);
       border-radius: 50%;
       animation: pulse 1.4s infinite;
+      flex-shrink: 0;
     }
 
     .day-tag {
@@ -382,6 +383,7 @@
       background-color: rgba(255, 255, 255, 0.06);
       padding: 1px 8px;
       border-radius: 999px;
+      flex-shrink: 0;
     }
 
     .grid {
@@ -767,19 +769,13 @@
       }
     }
 
-    function sortItems(items) {
-      const copied = [...items];
-      if (sortMode === 'channel') {
-        copied.sort((a, b) => {
-          const nameA = String(a.filterName || a.channelTitle);
-          const nameB = String(b.filterName || b.channelTitle);
-          const cmp = nameA.localeCompare(nameB, 'ja');
-          return cmp !== 0 ? cmp : (a.startTimeMs - b.startTimeMs);
-        });
-      } else {
-        copied.sort((a, b) => a.startTimeMs - b.startTimeMs);
-      }
-      return copied;
+    function sortChronologically(items) {
+      return [...items].sort((a, b) => {
+        if (a.status !== b.status) {
+          return a.status === 'live' ? -1 : 1;
+        }
+        return a.startTimeMs - b.startTimeMs;
+      });
     }
 
     function createCardElement(item, timeOnlyForUpcoming) {
@@ -849,8 +845,8 @@
         return true;
       });
 
-      const liveItems = sortItems(filteredLives.filter(item => item.status === 'live'));
-      const upcomingItems = sortItems(filteredLives.filter(item => item.status === 'upcoming'));
+      const liveItems = sortChronologically(filteredLives.filter(item => item.status === 'live'));
+      const upcomingItems = sortChronologically(filteredLives.filter(item => item.status === 'upcoming'));
 
       const isFiltered = (selectedTag !== 'ALL' || selectedChannel !== 'ALL');
       const resetBtnHtml = isFiltered
@@ -877,6 +873,55 @@
         return;
       }
 
+      // ==========================================
+      // モードA：チャンネル順（チャンネルごとの枠内に日時順表示）
+      // ==========================================
+      if (sortMode === 'channel') {
+        const groupedByChannel = new Map();
+
+        filteredLives.forEach(item => {
+          const chKey = item.filterName || item.channelTitle || '不明';
+          if (!groupedByChannel.has(chKey)) {
+            groupedByChannel.set(chKey, []);
+          }
+          groupedByChannel.get(chKey).push(item);
+        });
+
+        const sortedChannelKeys = Array.from(groupedByChannel.keys()).sort((a, b) => a.localeCompare(b, 'ja'));
+
+        sortedChannelKeys.forEach(chName => {
+          const itemsInChannel = sortChronologically(groupedByChannel.get(chName));
+          const hasLive = itemsInChannel.some(item => item.status === 'live');
+
+          const chSection = document.createElement('section');
+          chSection.className = `section-box ${hasLive ? 'live-section' : ''}`;
+          chSection.innerHTML = `
+            <div class="section-header">
+              <div class="section-title">
+                ${hasLive ? '<span class="live-dot-pulse"></span>' : ''}
+                <span>${escapeHtml(chName)}</span>
+              </div>
+              <span class="section-count">${itemsInChannel.length}件</span>
+            </div>
+          `;
+
+          const chGrid = document.createElement('div');
+          chGrid.className = 'grid';
+          itemsInChannel.forEach(item => {
+            // 日付跨ぎで並ぶため、開始予定もフル日時（11/21(土) 20:00）を表示
+            chGrid.appendChild(createCardElement(item, false));
+          });
+
+          chSection.appendChild(chGrid);
+          contentEl.appendChild(chSection);
+        });
+
+        return;
+      }
+
+      // ==========================================
+      // モードB：開始時間順（現在配信中 ＋ 日付ごとの枠）
+      // ==========================================
       if (liveItems.length > 0) {
         const liveSection = document.createElement('section');
         liveSection.className = 'section-box live-section';
@@ -904,8 +949,7 @@
         const dateLabels = getJstDateLabels();
         const groupedByDate = new Map();
 
-        const chronologicalUpcoming = [...upcomingItems].sort((a, b) => a.startTimeMs - b.startTimeMs);
-        chronologicalUpcoming.forEach(item => {
+        upcomingItems.forEach(item => {
           const displayTimeStr = String(item.displayTime || '');
           const datePart = displayTimeStr ? displayTimeStr.split(' ')[0] : '日時未定';
           if (!groupedByDate.has(datePart)) {
@@ -915,7 +959,7 @@
         });
 
         groupedByDate.forEach((itemsInDate, dateStr) => {
-          const sortedDateItems = sortItems(itemsInDate);
+          const sortedDateItems = sortChronologically(itemsInDate);
           const mdOnly = dateStr.split('(')[0];
           let relativeTag = '';
           if (mdOnly === dateLabels.today) {
