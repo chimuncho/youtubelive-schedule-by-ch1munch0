@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>My Live Schedule</title>
+  <style>
+    :root {
+      --bg-color: #0f0f0f;
+      --header-bg: rgba(15, 15, 15, 0.9);
+      --section-bg: #151517;
+      --section-live-bg: #1a1214;
+      --card-bg: #1e1e21;
+      --card-hover: #28282c;
+      --text-main: #f5f5f7;
+      --text-sub: #a1a1a6;
+      --live-red: #ff0033;
+      --live-glow: rgba(255, 0, 51, 0.28);
+      --upcoming-blue: #3ea6ff;
+      --tag-accent: #a78bfa;
+      --border-subtle: #2c2c2e;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", Meiryo, sans-serif;
+      line-height: 1.38;
+      padding-bottom: 40px;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background-color: var(--header-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 10px 16px;
+    }
+
+    .header-inner {
+      max-width: 1440px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      letter-spacing: 0.02em;
+    }
+
+    .header-title span.dot {
+      display: inline-block;
+      width: 9px;
+      height: 9px;
+      background-color: var(--live-red);
+      border-radius: 50%;
+    }
+
+    .meta-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.76rem;
+      color: var(--text-sub);
+    }
+
+    .reload-btn {
+      background-color: var(--card-bg);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 0.76rem;
+      cursor: pointer;
+      transition: background-color 0.15s, opacity 0.15s;
+    }
+
+    .reload-btn:hover:not(:disabled) {
+      background-color: var(--card-hover);
+    }
+
+    .reload-btn:disabled {
+      opacity: 0.55;
+      cursor: wait;
+    }
+
+    main {
+      max-width: 1440px;
+      margin: 12px auto 0;
+      padding: 0 14px;
+    }
+
+    .status-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .count-bar {
+      font-size: 0.8rem;
+      color: var(--text-sub);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .count-live {
+      color: #ff4d6d;
+      font-weight: 600;
+    }
+
+    .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: auto;
+    }
+
+    .filter-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background-color: var(--section-bg);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      border-radius: 7px;
+      padding: 4px 10px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      max-width: 170px;
+      transition: all 0.15s;
+    }
+
+    .filter-toggle-btn.has-filter {
+      background-color: rgba(62, 166, 255, 0.16);
+      border-color: rgba(62, 166, 255, 0.5);
+      color: var(--upcoming-blue);
+      font-weight: 600;
+    }
+
+    .filter-toggle-text {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .filter-chevron {
+      font-size: 0.65rem;
+      transition: transform 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .filter-toggle-btn.is-open .filter-chevron {
+      transform: rotate(180deg);
+    }
+
+    @media (min-width: 640px) {
+      .filter-toggle-btn {
+        display: none;
+      }
+    }
+
+    .reset-link {
+      font-size: 0.74rem;
+      color: var(--upcoming-blue);
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .sort-toggle {
+      display: inline-flex;
+      background-color: var(--section-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 7px;
+      padding: 2px;
+    }
+
+    .sort-btn {
+      background: transparent;
+      color: var(--text-sub);
+      border: none;
+      border-radius: 5px;
+      padding: 3px 8px;
+      font-size: 0.73rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .sort-btn.active {
+      background-color: var(--card-hover);
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    .filter-panel {
+      background-color: var(--section-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    @media (max-width: 639px) {
+      .filter-panel.is-collapsed {
+        display: none !important;
+      }
+    }
+
+    .filter-panel-mobile-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 0.74rem;
+      color: var(--text-sub);
+    }
+
+    .filter-close-btn {
+      background-color: var(--card-bg);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      border-radius: 5px;
+      padding: 2px 8px;
+      font-size: 0.72rem;
+      cursor: pointer;
+    }
+
+    @media (min-width: 640px) {
+      .filter-panel-mobile-header {
+        display: none;
+      }
+    }
+
+    .filter-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .filter-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-sub);
+      min-width: 62px;
+      padding-top: 4px;
+      flex-shrink: 0;
+    }
+
+    .chip-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      flex: 1;
+    }
+
+    .chip {
+      background-color: var(--card-bg);
+      color: var(--text-sub);
+      border: 1px solid var(--border-subtle);
+      border-radius: 999px;
+      padding: 3px 10px;
+      font-size: 0.74rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+
+    .chip:hover {
+      background-color: var(--card-hover);
+      color: var(--text-main);
+    }
+
+    .chip.active {
+      background-color: var(--upcoming-blue);
+      color: #000;
+      border-color: var(--upcoming-blue);
+      font-weight: 700;
+    }
+
+    .chip.tag-chip.active {
+      background-color: var(--tag-accent);
+      color: #000;
+      border-color: var(--tag-accent);
+    }
+
+    .section-box {
+      background-color: var(--section-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+    }
+
+    .section-box.live-section {
+      background-color: var(--section-live-bg);
+      border: 1px solid rgba(255, 0, 51, 0.4);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .live-section .section-header {
+      border-bottom-color: rgba(255, 0, 51, 0.25);
+    }
+
+    .section-title {
+      font-size: 0.94rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .live-dot-pulse {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background-color: var(--live-red);
+      border-radius: 50%;
+      animation: pulse 1.4s infinite;
+    }
+
+    .day-tag {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 1px 7px;
+      border-radius: 999px;
+      background-color: rgba(62, 166, 255, 0.16);
+      color: var(--upcoming-blue);
+      border: 1px solid rgba(62, 166, 255, 0.35);
+    }
+
+    .day-tag.is-today {
+      background-color: rgba(52, 199, 89, 0.16);
+      color: #4cd964;
+      border-color: rgba(52, 199, 89, 0.35);
+    }
+
+    .section-count {
+      font-size: 0.75rem;
+      color: var(--text-sub);
+      background-color: rgba(255, 255, 255, 0.06);
+      padding: 1px 8px;
+      border-radius: 999px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    @media (min-width: 640px) {
+      .grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+      }
+    }
+
+    @media (min-width: 960px) {
+      .grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+
+    @media (min-width: 1280px) {
+      .grid {
+        grid-template-columns: repeat(5, 1fr);
+      }
+    }
+
+    .card {
+      display: flex;
+      flex-direction: column;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 9px;
+      overflow: hidden;
+      text-decoration: none;
+      color: inherit;
+      transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .card:hover {
+      background-color: var(--card-hover);
+      transform: translateY(-2px);
+    }
+
+    .card.is-live {
+      border: 2px solid var(--live-red);
+      box-shadow: 0 0 10px var(--live-glow);
+    }
+
+    .thumb-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background-color: #000;
+      overflow: hidden;
+    }
+
+    .thumb-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .badge {
+      position: absolute;
+      bottom: 6px;
+      left: 6px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.65);
+    }
+
+    .badge-live {
+      background-color: var(--live-red);
+      color: #fff;
+    }
+
+    .badge-live::before {
+      content: "";
+      display: inline-block;
+      width: 5px;
+      height: 5px;
+      background-color: #fff;
+      border-radius: 50%;
+      animation: pulse 1.4s infinite;
+    }
+
+    .badge-upcoming {
+      background-color: rgba(15, 15, 15, 0.88);
+      color: var(--upcoming-blue);
+      border: 1px solid rgba(62, 166, 255, 0.4);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.25; }
+    }
+
+    .card-body {
+      padding: 8px 10px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+    }
+
+    .schedule-time {
+      font-size: 0.74rem;
+      font-weight: 600;
+      color: var(--upcoming-blue);
+    }
+
+    .card.is-live .schedule-time {
+      color: #ff4d6d;
+    }
+
+    .video-title {
+      font-size: 0.84rem;
+      font-weight: 600;
+      color: var(--text-main);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .card-footer {
+      margin-top: auto;
+      padding-top: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .channel-name {
+      font-size: 0.74rem;
+      color: var(--text-sub);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-tags {
+      display: flex;
+      gap: 3px;
+      flex-shrink: 0;
+    }
+
+    .mini-tag {
+      font-size: 0.64rem;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background-color: rgba(167, 139, 250, 0.15);
+      color: var(--tag-accent);
+      border: 1px solid rgba(167, 139, 250, 0.3);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--text-sub);
+      background-color: var(--section-bg);
+      border-radius: 12px;
+      border: 1px solid var(--border-subtle);
+      font-size: 0.9rem;
+    }
+
+    .error-box {
+      padding: 14px;
+      background-color: #2c1518;
+      border: 1px solid var(--live-red);
+      border-radius: 10px;
+      color: #ff8095;
+      font-size: 0.82rem;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-inner">
+      <div class="header-title">
+        <span class="dot"></span>
+        <span>Live Schedule</span>
+      </div>
+      <div class="meta-info">
+        <span id="last-updated">更新: --/-- --:--</span>
+        <button id="reload-btn" class="reload-btn" onclick="fetchScheduleData()">再読込</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="status-toolbar">
+      <div class="toolbar-left">
+        <div class="count-bar" id="count-bar"></div>
+      </div>
+      <div class="toolbar-right">
+        <button class="filter-toggle-btn" id="filter-toggle-btn" onclick="toggleFilterPanel()" style="display:none;">
+          <span class="filter-toggle-text" id="filter-toggle-text">絞り込み</span>
+          <span class="filter-chevron">▼</span>
+        </button>
+        <div class="sort-toggle">
+          <button class="sort-btn active" id="sort-time" onclick="setSortMode('time')">開始時間順</button>
+          <button class="sort-btn" id="sort-channel" onclick="setSortMode('channel')">チャンネル順</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="filter-panel is-collapsed" id="filter-panel" style="display:none;">
+      <div class="filter-panel-mobile-header">
+        <span>表示するタグ・チャンネルを選択</span>
+        <button class="filter-close-btn" onclick="toggleFilterPanel(false)">閉じる</button>
+      </div>
+      <div class="filter-row" id="tag-filter-row" style="display:none;">
+        <div class="filter-label">タグ</div>
+        <div class="chip-group" id="tag-chips"></div>
+      </div>
+      <div class="filter-row">
+        <div class="filter-label">チャンネル</div>
+        <div class="chip-group" id="channel-chips"></div>
+      </div>
+    </div>
+
+    <div id="content">
+      <div class="empty-state">配信スケジュールを読み込み中...</div>
+    </div>
+  </main>
+
+  <script>
+    // ==========================================
+    // 【設定】ここにGASのウェブアプリURLを貼り付け
+    // ==========================================
+    const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzKEjdp1EPCZ_8jCAvaGfTdOA9kCVBnau0XdnR9-uuj7kYlAbqp-jRQrAouMQnUSqPs/exec';
+
+    let currentPayload = { lives: [], lastUpdated: '未更新' };
+    let selectedTag = 'ALL';
+    let selectedChannel = 'ALL';
+    let sortMode = 'time';
+    let isFilterOpen = false;
+
+    function getJstDateLabels() {
+      const now = new Date();
+      const jstNow = new Date(now.getTime() + (9 * 60 * 60 * 1000) + (now.getTimezoneOffset() * 60 * 1000));
+      const jstTomorrow = new Date(jstNow.getTime() + 24 * 60 * 60 * 1000);
+      const fmt = (d) => `${d.getMonth() + 1}/${d.getDate()}`;
+      return {
+        today: fmt(jstNow),
+        tomorrow: fmt(jstTomorrow)
+      };
+    }
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function parseTags(tagsStr) {
+      if (!tagsStr) return [];
+      return String(tagsStr)
+        .split(/[,、]/)
+        .map(t => t.trim())
+        .filter(t => t.length > 0);
+    }
+
+    function toggleFilterPanel(forceState) {
+      isFilterOpen = (typeof forceState === 'boolean') ? forceState : !isFilterOpen;
+      const panel = document.getElementById('filter-panel');
+      const btn = document.getElementById('filter-toggle-btn');
+      panel.classList.toggle('is-collapsed', !isFilterOpen);
+      btn.classList.toggle('is-open', isFilterOpen);
+    }
+
+    function selectTag(tag) {
+      selectedTag = tag;
+      selectedChannel = 'ALL';
+      render();
+    }
+
+    function selectChannel(channel) {
+      selectedChannel = channel;
+      render();
+    }
+
+    function resetFilters() {
+      selectedTag = 'ALL';
+      selectedChannel = 'ALL';
+      render();
+    }
+
+    function setSortMode(mode) {
+      sortMode = mode;
+      document.getElementById('sort-time').classList.toggle('active', mode === 'time');
+      document.getElementById('sort-channel').classList.toggle('active', mode === 'channel');
+      render();
+    }
+
+    function renderFilterControls(allLives) {
+      const filterPanel = document.getElementById('filter-panel');
+      const toggleBtn = document.getElementById('filter-toggle-btn');
+      const toggleText = document.getElementById('filter-toggle-text');
+
+      if (allLives.length === 0) {
+        filterPanel.style.display = 'none';
+        toggleBtn.style.display = 'none';
+        return;
+      }
+
+      filterPanel.style.display = 'flex';
+      toggleBtn.style.display = '';
+
+      const tagSet = new Set();
+      allLives.forEach(item => {
+        parseTags(item.tags).forEach(t => tagSet.add(t));
+      });
+      const tagsList = Array.from(tagSet);
+
+      if (selectedTag !== 'ALL' && !tagSet.has(selectedTag)) {
+        selectedTag = 'ALL';
+      }
+
+      const tagRow = document.getElementById('tag-filter-row');
+      const tagChipsEl = document.getElementById('tag-chips');
+      if (tagsList.length > 0) {
+        tagRow.style.display = 'flex';
+        let tagHtml = `<button class="chip tag-chip ${selectedTag === 'ALL' ? 'active' : ''}" onclick="selectTag('ALL')">すべて</button>`;
+        tagsList.forEach(tag => {
+          const isActive = selectedTag === tag ? 'active' : '';
+          tagHtml += `<button class="chip tag-chip ${isActive}" onclick="selectTag('${escapeHtml(tag)}')">${escapeHtml(tag)}</button>`;
+        });
+        tagChipsEl.innerHTML = tagHtml;
+      } else {
+        tagRow.style.display = 'none';
+      }
+
+      const livesForChannelList = selectedTag === 'ALL'
+        ? allLives
+        : allLives.filter(item => parseTags(item.tags).includes(selectedTag));
+
+      const channelSet = new Set();
+      livesForChannelList.forEach(item => {
+        if (item.channelTitle) channelSet.add(item.channelTitle);
+      });
+      const channelsList = Array.from(channelSet).sort((a, b) => a.localeCompare(b, 'ja'));
+
+      if (selectedChannel !== 'ALL' && !channelSet.has(selectedChannel)) {
+        selectedChannel = 'ALL';
+      }
+
+      const channelChipsEl = document.getElementById('channel-chips');
+      let chHtml = `<button class="chip ${selectedChannel === 'ALL' ? 'active' : ''}" onclick="selectChannel('ALL')">すべて</button>`;
+      channelsList.forEach(ch => {
+        const isActive = selectedChannel === ch ? 'active' : '';
+        chHtml += `<button class="chip ${isActive}" onclick="selectChannel('${escapeHtml(ch)}')">${escapeHtml(ch)}</button>`;
+      });
+      channelChipsEl.innerHTML = chHtml;
+
+      const activeLabels = [];
+      if (selectedTag !== 'ALL') activeLabels.push(selectedTag);
+      if (selectedChannel !== 'ALL') activeLabels.push(selectedChannel);
+
+      if (activeLabels.length > 0) {
+        toggleBtn.classList.add('has-filter');
+        toggleText.textContent = activeLabels.join(' / ');
+      } else {
+        toggleBtn.classList.remove('has-filter');
+        toggleText.textContent = '絞り込み';
+      }
+    }
+
+    function sortItems(items) {
+      const copied = [...items];
+      if (sortMode === 'channel') {
+        copied.sort((a, b) => {
+          const cmp = String(a.channelTitle).localeCompare(String(b.channelTitle), 'ja');
+          return cmp !== 0 ? cmp : (a.startTimeMs - b.startTimeMs);
+        });
+      } else {
+        copied.sort((a, b) => a.startTimeMs - b.startTimeMs);
+      }
+      return copied;
+    }
+
+    function createCardElement(item, timeOnlyForUpcoming) {
+      const isLive = item.status === 'live';
+      const card = document.createElement('a');
+      card.className = `card ${isLive ? 'is-live' : ''}`;
+      card.href = `https://www.youtube.com/watch?v=${encodeURIComponent(item.videoId || '')}`;
+      card.target = '_blank';
+      card.rel = 'noopener noreferrer';
+
+      const badgeHtml = isLive
+        ? `<span class="badge badge-live">LIVE</span>`
+        : `<span class="badge badge-upcoming">配信予定</span>`;
+
+      const displayTimeStr = String(item.displayTime || '');
+      let timeLabel = '';
+      if (isLive) {
+        timeLabel = `${displayTimeStr} 開始`;
+      } else if (timeOnlyForUpcoming && displayTimeStr.includes(' ')) {
+        const timePart = displayTimeStr.split(' ')[1];
+        timeLabel = `${timePart} 開始予定`;
+      } else {
+        timeLabel = `${displayTimeStr} 開始予定`;
+      }
+
+      const itemTags = parseTags(item.tags);
+      const tagsHtml = itemTags.length > 0
+        ? `<div class="card-tags">${itemTags.map(t => `<span class="mini-tag">${escapeHtml(t)}</span>`).join('')}</div>`
+        : '';
+
+      card.innerHTML = `
+        <div class="thumb-wrap">
+          <img src="${escapeHtml(item.thumbnail)}" alt="" loading="lazy">
+          ${badgeHtml}
+        </div>
+        <div class="card-body">
+          <div class="schedule-time">${escapeHtml(timeLabel)}</div>
+          <div class="video-title">${escapeHtml(item.title)}</div>
+          <div class="card-footer">
+            <div class="channel-name">${escapeHtml(item.channelTitle)}</div>
+            ${tagsHtml}
+          </div>
+        </div>
+      `;
+
+      return card;
+    }
+
+    function render(newPayload) {
+      if (newPayload) {
+        currentPayload = newPayload;
+      }
+
+      const allLives = currentPayload.lives || [];
+      document.getElementById('last-updated').textContent = `キャッシュ更新: ${currentPayload.lastUpdated || '未更新'}`;
+
+      renderFilterControls(allLives);
+
+      const filteredLives = allLives.filter(item => {
+        if (selectedTag !== 'ALL' && !parseTags(item.tags).includes(selectedTag)) {
+          return false;
+        }
+        if (selectedChannel !== 'ALL' && item.channelTitle !== selectedChannel) {
+          return false;
+        }
+        return true;
+      });
+
+      const liveItems = sortItems(filteredLives.filter(item => item.status === 'live'));
+      const upcomingItems = sortItems(filteredLives.filter(item => item.status === 'upcoming'));
+
+      const isFiltered = (selectedTag !== 'ALL' || selectedChannel !== 'ALL');
+      const resetBtnHtml = isFiltered
+        ? `<button class="reset-link" onclick="resetFilters()">解除</button>`
+        : '';
+
+      document.getElementById('count-bar').innerHTML = `
+        <span class="count-live">● 配信中: ${liveItems.length}件</span>
+        <span>予定: ${upcomingItems.length}件</span>
+        ${resetBtnHtml}
+      `;
+
+      const contentEl = document.getElementById('content');
+      contentEl.innerHTML = '';
+
+      if (filteredLives.length === 0) {
+        contentEl.innerHTML = `
+          <div class="empty-state">
+            ${allLives.length === 0
+              ? '現在、配信中または配信予定のライブ枠はありません。'
+              : '選択中の条件に一致する配信枠はありません。'}
+          </div>
+        `;
+        return;
+      }
+
+      if (liveItems.length > 0) {
+        const liveSection = document.createElement('section');
+        liveSection.className = 'section-box live-section';
+        liveSection.innerHTML = `
+          <div class="section-header">
+            <div class="section-title">
+              <span class="live-dot-pulse"></span>
+              <span>現在配信中</span>
+            </div>
+            <span class="section-count">${liveItems.length}件</span>
+          </div>
+        `;
+
+        const liveGrid = document.createElement('div');
+        liveGrid.className = 'grid';
+        liveItems.forEach(item => {
+          liveGrid.appendChild(createCardElement(item, false));
+        });
+
+        liveSection.appendChild(liveGrid);
+        contentEl.appendChild(liveSection);
+      }
+
+      if (upcomingItems.length > 0) {
+        const dateLabels = getJstDateLabels();
+        const groupedByDate = new Map();
+
+        const chronologicalUpcoming = [...upcomingItems].sort((a, b) => a.startTimeMs - b.startTimeMs);
+        chronologicalUpcoming.forEach(item => {
+          const displayTimeStr = String(item.displayTime || '');
+          const datePart = displayTimeStr ? displayTimeStr.split(' ')[0] : '日時未定';
+          if (!groupedByDate.has(datePart)) {
+            groupedByDate.set(datePart, []);
+          }
+          groupedByDate.get(datePart).push(item);
+        });
+
+        groupedByDate.forEach((itemsInDate, dateStr) => {
+          const sortedDateItems = sortItems(itemsInDate);
+          const mdOnly = dateStr.split('(')[0];
+          let relativeTag = '';
+          if (mdOnly === dateLabels.today) {
+            relativeTag = `<span class="day-tag is-today">今日</span>`;
+          } else if (mdOnly === dateLabels.tomorrow) {
+            relativeTag = `<span class="day-tag">明日</span>`;
+          }
+
+          const dateSection = document.createElement('section');
+          dateSection.className = 'section-box';
+          dateSection.innerHTML = `
+            <div class="section-header">
+              <div class="section-title">
+                <span>${escapeHtml(dateStr)} の配信予定</span>
+                ${relativeTag}
+              </div>
+              <span class="section-count">${sortedDateItems.length}件</span>
+            </div>
+          `;
+
+          const dateGrid = document.createElement('div');
+          dateGrid.className = 'grid';
+          sortedDateItems.forEach(item => {
+            dateGrid.appendChild(createCardElement(item, true));
+          });
+
+          dateSection.appendChild(dateGrid);
+          contentEl.appendChild(dateSection);
+        });
+      }
+    }
+
+    async function fetchScheduleData() {
+      const btn = document.getElementById('reload-btn');
+      const contentEl = document.getElementById('content');
+      const isGasEnv = (typeof google !== 'undefined' && google.script && google.script.run);
+
+      btn.disabled = true;
+      btn.textContent = '読込中...';
+
+      if (isGasEnv) {
+        google.script.run
+          .withSuccessHandler((data) => {
+            render(data);
+            btn.disabled = false;
+            btn.textContent = '再読込';
+          })
+          .withFailureHandler((err) => {
+            contentEl.innerHTML = `<div class="error-box">取得エラー: ${escapeHtml(err.message)}</div>`;
+            btn.disabled = false;
+            btn.textContent = '再読込';
+          })
+          .getCachedLivesData();
+      } else {
+        if (!GAS_API_URL || !GAS_API_URL.startsWith('https://')) {
+          contentEl.innerHTML = `
+            <div class="error-box">index.html 内の GAS_API_URL が未設定です。GASのウェブアプリURLを貼り付けてください。</div>
+          `;
+          btn.disabled = false;
+          btn.textContent = '再読込';
+          return;
+        }
+
+        try {
+          const requestUrl = `${GAS_API_URL}?api=1&t=${Date.now()}`;
+          const response = await fetch(requestUrl);
+          if (!response.ok) {
+            throw new Error(`HTTPエラー: ${response.status}`);
+          }
+          const data = await response.json();
+          render(data);
+        } catch (e) {
+          contentEl.innerHTML = `
+            <div class="error-box">データの取得に失敗しました。\nGASのデプロイ設定で「アクセスできるユーザー」が「全員」になっているか確認してください。\n\n詳細: ${escapeHtml(e.message)}</div>
+          `;
+        } finally {
+          btn.disabled = false;
+          btn.textContent = '再読込';
+        }
+      }
+    }
+
+    fetchScheduleData();
+  </script>
+</body>
+</html>
