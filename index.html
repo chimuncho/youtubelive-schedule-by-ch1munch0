@@ -577,7 +577,7 @@
       </div>
       <div class="meta-info">
         <span id="last-updated">更新: --/-- --:--</span>
-        <button id="reload-btn" class="reload-btn" onclick="fetchScheduleData()">再読込</button>
+        <button id="reload-btn" class="reload-btn" onclick="fetchScheduleData(false)">再読込</button>
       </div>
     </div>
   </header>
@@ -619,11 +619,12 @@
     </div>
   </main>
 
+  <!-- GAS直接アクセス時の初期データ埋め込み枠 -->
+  <script id="initial-data" type="application/json"><?!= typeof initialData !== 'undefined' ? initialData : '' ?></script>
+
   <script>
-    // ==========================================
-    // 【設定】ここにGASのウェブアプリURLを貼り付け
-    // ==========================================
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzKEjdp1EPCZ_8jCAvaGfTdOA9kCVBnau0XdnR9-uuj7kYlAbqp-jRQrAouMQnUSqPs/exec';
+    const LOCAL_STORAGE_KEY = 'yt_live_schedule_cache_v1';
 
     let currentPayload = { lives: [], lastUpdated: '未更新' };
     let selectedTag = 'ALL';
@@ -943,13 +944,13 @@
       }
     }
 
-    async function fetchScheduleData() {
+    async function fetchScheduleData(isBackground = false) {
       const btn = document.getElementById('reload-btn');
       const contentEl = document.getElementById('content');
       const isGasEnv = (typeof google !== 'undefined' && google.script && google.script.run);
 
       btn.disabled = true;
-      btn.textContent = '読込中...';
+      btn.textContent = isBackground ? '更新中...' : '読込中...';
 
       if (isGasEnv) {
         google.script.run
@@ -959,21 +960,14 @@
             btn.textContent = '再読込';
           })
           .withFailureHandler((err) => {
-            contentEl.innerHTML = `<div class="error-box">取得エラー: ${escapeHtml(err.message)}</div>`;
+            if (!isBackground) {
+              contentEl.innerHTML = `<div class="error-box">取得エラー: ${escapeHtml(err.message)}</div>`;
+            }
             btn.disabled = false;
             btn.textContent = '再読込';
           })
           .getCachedLivesData();
       } else {
-        if (!GAS_API_URL || !GAS_API_URL.startsWith('https://')) {
-          contentEl.innerHTML = `
-            <div class="error-box">index.html 内の GAS_API_URL が未設定です。GASのウェブアプリURLを貼り付けてください。</div>
-          `;
-          btn.disabled = false;
-          btn.textContent = '再読込';
-          return;
-        }
-
         try {
           const requestUrl = `${GAS_API_URL}?api=1&t=${Date.now()}`;
           const response = await fetch(requestUrl);
@@ -982,10 +976,16 @@
           }
           const data = await response.json();
           render(data);
+          // 次回の0秒表示用にブラウザへ保存
+          try {
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+          } catch (storageErr) {}
         } catch (e) {
-          contentEl.innerHTML = `
-            <div class="error-box">データの取得に失敗しました。\nGASのデプロイ設定で「アクセスできるユーザー」が「全員」になっているか確認してください。\n\n詳細: ${escapeHtml(e.message)}</div>
-          `;
+          if (!isBackground) {
+            contentEl.innerHTML = `
+              <div class="error-box">データの取得に失敗しました。\n詳細: ${escapeHtml(e.message)}</div>
+            `;
+          }
         } finally {
           btn.disabled = false;
           btn.textContent = '再読込';
@@ -993,7 +993,31 @@
       }
     }
 
-    fetchScheduleData();
+    // 起動時の高速初期化処理
+    (function init() {
+      const initialEl = document.getElementById('initial-data');
+      const rawInitial = initialEl ? initialEl.textContent.trim() : '';
+
+      // 1. GAS直接アクセス時：HTML埋め込みデータがあれば0秒で即描画
+      if (rawInitial.startsWith('{')) {
+        try {
+          render(JSON.parse(rawInitial));
+          return;
+        } catch (e) {}
+      }
+
+      // 2. GitHub Pagesアクセス時：ブラウザに前回データがあれば0秒で即描画し、裏で最新化
+      let hasLocalCache = false;
+      try {
+        const cachedStr = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (cachedStr) {
+          render(JSON.parse(cachedStr));
+          hasLocalCache = true;
+        }
+      } catch (e) {}
+
+      fetchScheduleData(hasLocalCache);
+    })();
   </script>
 </body>
 </html>
