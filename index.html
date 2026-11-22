@@ -687,8 +687,6 @@
     </div>
   </main>
 
-  <script id="initial-data" type="application/json"><?!= typeof initialData !== 'undefined' ? initialData : '' ?></script>
-
   <script>
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzKEjdp1EPCZ_8jCAvaGfTdOA9kCVBnau0XdnR9-uuj7kYlAbqp-jRQrAouMQnUSqPs/exec';
     const LOCAL_STORAGE_KEY = 'yt_live_schedule_cache_v6';
@@ -1182,111 +1180,57 @@
 
       const btn = document.getElementById('reload-btn');
       const contentEl = document.getElementById('content');
-      const isGasEnv = (typeof google !== 'undefined' && google.script && google.script.run);
 
       btn.disabled = true;
       btn.textContent = isBackground ? '更新中...' : '読込中...';
 
-      if (isGasEnv) {
-        let settled = false;
-        const gasTimer = setTimeout(() => {
-          if (settled) return;
-          settled = true;
-          lastFetchError = '通信がタイムアウトしました';
-          updateStatusBadges();
-          if (!hasRenderedData) {
-            contentEl.innerHTML = `<div class="error-box">取得エラー: ${escapeHtml(lastFetchError)}</div>`;
-          }
-          isFetching = false;
-          btn.disabled = false;
-          btn.textContent = '再読込';
-          scheduleNextAutoFetch();
-        }, FETCH_TIMEOUT_MS);
+      const controller = new AbortController(); // [T-1]
+      const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS); // [T-1]
 
-        google.script.run
-          .withSuccessHandler((data) => {
-            if (settled) return;
-            settled = true;
-            clearTimeout(gasTimer);
-            if (!data || !Array.isArray(data.lives)) {
-              lastFetchError = '不正なデータ形式です';
-              updateStatusBadges();
-            } else {
-              const now = Date.now();
-              savedAtMs = now;
-              lastSuccessfulFetchAt = now;
-              lastFetchError = '';
-              render(data);
-            }
-            isFetching = false;
-            btn.disabled = false;
-            btn.textContent = '再読込';
-            scheduleNextAutoFetch();
-          })
-          .withFailureHandler((err) => {
-            if (settled) return;
-            settled = true;
-            clearTimeout(gasTimer);
-            lastFetchError = (err && err.message) || '取得エラー';
-            updateStatusBadges();
-            if (!hasRenderedData) {
-              contentEl.innerHTML = `<div class="error-box">取得エラー: ${escapeHtml(lastFetchError)}</div>`;
-            }
-            isFetching = false;
-            btn.disabled = false;
-            btn.textContent = '再読込';
-            scheduleNextAutoFetch();
-          })
-          .getCachedLivesData();
-      } else {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+      try { // [T-1]
+        const requestUrl = `${GAS_API_URL}?api=1&t=${Date.now()}`; // [T-1]
+        const response = await fetch(requestUrl, { signal: controller.signal }); // [T-1]
+        if (!response.ok) { // [T-1]
+          throw new Error(`HTTPエラー: ${response.status}`); // [T-1]
+        } // [T-1]
+        const data = await response.json(); // [T-1]
+        if (!data || !Array.isArray(data.lives)) { // [T-1]
+          throw new Error('サーバー応答の形式が不正です'); // [T-1]
+        } // [T-1]
 
-        try {
-          const requestUrl = `${GAS_API_URL}?api=1&t=${Date.now()}`;
-          const response = await fetch(requestUrl, { signal: controller.signal });
-          if (!response.ok) {
-            throw new Error(`HTTPエラー: ${response.status}`);
-          }
-          const data = await response.json();
-          if (!data || !Array.isArray(data.lives)) {
-            throw new Error('サーバー応答の形式が不正です');
-          }
+        const now = Date.now(); // [T-1]
+        savedAtMs = now; // [T-1]
+        lastSuccessfulFetchAt = now; // [T-1]
+        lastFetchError = ''; // [T-1]
 
-          const now = Date.now();
-          savedAtMs = now;
-          lastSuccessfulFetchAt = now;
-          lastFetchError = '';
+        render(data); // [T-1]
 
-          render(data);
+        try { // [T-1]
+          const cacheWrapper = { // [T-1]
+            schemaVersion: 6, // [T-1]
+            savedAtMs: now, // [T-1]
+            payload: data // [T-1]
+          }; // [T-1]
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cacheWrapper)); // [T-1]
+        } catch (storageErr) {} // [T-1]
+      } catch (e) { // [T-1]
+        lastFetchError = (e.name === 'AbortError') // [T-1]
+          ? '通信がタイムアウトしました' // [T-1]
+          : (e.message || '通信エラー'); // [T-1]
+        updateStatusBadges(); // [T-1]
 
-          try {
-            const cacheWrapper = {
-              schemaVersion: 6,
-              savedAtMs: now,
-              payload: data
-            };
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cacheWrapper));
-          } catch (storageErr) {}
-        } catch (e) {
-          lastFetchError = (e.name === 'AbortError')
-            ? '通信がタイムアウトしました'
-            : (e.message || '通信エラー');
-          updateStatusBadges();
-
-          if (!hasRenderedData) {
-            contentEl.innerHTML = `
-              <div class="error-box">データの取得に失敗しました。\n詳細: ${escapeHtml(lastFetchError)}</div>
-            `;
-          }
-        } finally {
-          clearTimeout(timeoutId);
-          isFetching = false;
-          btn.disabled = false;
-          btn.textContent = '再読込';
-          scheduleNextAutoFetch();
-        }
-      }
+        if (!hasRenderedData) { // [T-1]
+          contentEl.innerHTML = `
+            <div class="error-box">データの取得に失敗しました。\n詳細: ${escapeHtml(lastFetchError)}</div>
+          `; // [T-1]
+        } // [T-1]
+      } finally { // [T-1]
+        clearTimeout(timeoutId); // [T-1]
+        isFetching = false; // [T-1]
+        btn.disabled = false; // [T-1]
+        btn.textContent = '再読込'; // [T-1]
+        scheduleNextAutoFetch(); // [T-1]
+      } // [T-1]
     }
 
     function setupEventListeners() {
@@ -1344,24 +1288,7 @@
     (function init() {
       setupEventListeners();
 
-      const initialEl = document.getElementById('initial-data');
-      const rawInitial = initialEl ? initialEl.textContent.trim() : '';
-
-      if (rawInitial.startsWith('{')) {
-        try {
-          const parsed = JSON.parse(rawInitial);
-          if (parsed && Array.isArray(parsed.lives)) {
-            const now = Date.now();
-            savedAtMs = now;
-            lastSuccessfulFetchAt = now;
-            render(parsed);
-            scheduleNextAutoFetch();
-            return;
-          }
-        } catch (e) {}
-      }
-
-      let hasLocalCache = false;
+      let hasLocalCache = false; // [T-1]
       try {
         const cachedStr = localStorage.getItem(LOCAL_STORAGE_KEY);
         if (cachedStr) {
