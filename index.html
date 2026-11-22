@@ -691,10 +691,11 @@
 
   <script>
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzKEjdp1EPCZ_8jCAvaGfTdOA9kCVBnau0XdnR9-uuj7kYlAbqp-jRQrAouMQnUSqPs/exec';
-    const LOCAL_STORAGE_KEY = 'yt_live_schedule_cache_v5';
+    const LOCAL_STORAGE_KEY = 'yt_live_schedule_cache_v6';
     const FETCH_TIMEOUT_MS = 15000;
     const AUTO_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
     const STALE_THRESHOLD_MS = 30 * 60 * 1000;
+    const TRIGGER_STALL_THRESHOLD_MS = 45 * 60 * 1000;
 
     const ALLOWED_THUMB_HOSTS = new Set([
       'i.ytimg.com',
@@ -710,6 +711,7 @@
       lives: [],
       lastUpdated: '未更新',
       lastUpdatedMs: 0,
+      lastAttemptedMs: 0,
       updateStatus: 'success',
       errorSummary: '',
       tagOrder: []
@@ -748,7 +750,7 @@
     }
 
     function sanitizeThumbnailUrl(rawUrl, videoId) {
-      const fallback = videoId ? `https://i.ytimg.com/vi/${encodeURIComponent(videoId)}/maxresdefault.jpg` : '';
+      const fallback = videoId ? `https://i.ytimg.com/vi/${encodeURIComponent(videoId)}/hqdefault.jpg` : '';
       if (!rawUrl) return fallback;
       try {
         const parsed = new URL(String(rawUrl));
@@ -788,6 +790,10 @@
       const localStale = savedAtMs > 0 && (now - savedAtMs > STALE_THRESHOLD_MS);
       if (backendStale || localStale) {
         pills.push(`<span class="status-pill is-warn">⚠ 古いデータ表示中</span>`);
+      }
+
+      if (currentPayload.lastAttemptedMs > 0 && (now - currentPayload.lastAttemptedMs > TRIGGER_STALL_THRESHOLD_MS)) {
+        pills.push(`<span class="status-pill is-warn">⚠ 定期更新停止の疑い</span>`);
       }
 
       badgesEl.innerHTML = pills.join('');
@@ -933,6 +939,8 @@
     function createCardElement(item, timeOnlyForUpcoming) {
       const isLive = item.status === 'live';
       const isMember = Boolean(item.isMember);
+      const isMemberStarted = isMember && !isLive && item.startTimeMs > 0 && item.startTimeMs <= Date.now();
+
       const card = document.createElement('a');
       card.className = `card ${isLive ? 'is-live' : ''} ${isMember ? 'is-member' : ''}`.trim();
       card.href = `https://www.youtube.com/watch?v=${encodeURIComponent(item.videoId || '')}`;
@@ -943,7 +951,7 @@
         ? `<span class="badge badge-live">LIVE</span>`
         : `<span class="badge badge-upcoming">配信予定</span>`;
       const memberBadge = isMember
-        ? `<span class="badge badge-member">メン限</span>`
+        ? `<span class="badge badge-member">${isMemberStarted ? 'メン限・開始済？' : 'メン限'}</span>`
         : '';
 
       const displayTimeStr = String(item.displayTime || '');
@@ -952,9 +960,9 @@
         timeLabel = `${displayTimeStr} 開始`;
       } else if (timeOnlyForUpcoming && displayTimeStr.includes(' ')) {
         const timePart = displayTimeStr.split(' ')[1];
-        timeLabel = `${timePart} 開始予定`;
+        timeLabel = isMemberStarted ? `${timePart} 開始予定（経過）` : `${timePart} 開始予定`;
       } else {
-        timeLabel = `${displayTimeStr} 開始予定`;
+        timeLabel = isMemberStarted ? `${displayTimeStr} 開始予定（経過）` : `${displayTimeStr} 開始予定`;
       }
 
       const safeThumb = sanitizeThumbnailUrl(item.thumbnail, item.videoId);
@@ -1180,20 +1188,46 @@
       btn.textContent = isBackground ? '更新中...' : '読込中...';
 
       if (isGasEnv) {
+        let settled = false;
+        const gasTimer = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          lastFetchError = '通信がタイムアウトしました';
+          updateStatusBadges();
+          if (!hasRenderedData) {
+            contentEl.innerHTML = `<div class="error-box">取得エラー: ${escapeHtml(lastFetchError)}</div>`;
+          }
+          isFetching = false;
+          btn.disabled = false;
+          btn.textContent = '再読込';
+          scheduleNextAutoFetch();
+        }, FETCH_TIMEOUT_MS);
+
         google.script.run
           .withSuccessHandler((data) => {
-            const now = Date.now();
-            savedAtMs = now;
-            lastSuccessfulFetchAt = now;
-            lastFetchError = '';
-            render(data);
+            if (settled) return;
+            settled = true;
+            clearTimeout(gasTimer);
+            if (!data || !Array.isArray(data.lives)) {
+              lastFetchError = '不正なデータ形式です';
+              updateStatusBadges();
+            } else {
+              const now = Date.now();
+              savedAtMs = now;
+              lastSuccessfulFetchAt = now;
+              lastFetchError = '';
+              render(data);
+            }
             isFetching = false;
             btn.disabled = false;
             btn.textContent = '再読込';
             scheduleNextAutoFetch();
           })
           .withFailureHandler((err) => {
-            lastFetchError = err.message || '取得エラー';
+            if (settled) return;
+            settled = true;
+            clearTimeout(gasTimer);
+            lastFetchError = (err && err.message) || '取得エラー';
             updateStatusBadges();
             if (!hasRenderedData) {
               contentEl.innerHTML = `<div class="error-box">取得エラー: ${escapeHtml(lastFetchError)}</div>`;
@@ -1215,6 +1249,10 @@
             throw new Error(`HTTPエラー: ${response.status}`);
           }
           const data = await response.json();
+          if (!data || !Array.isArray(data.lives)) {
+            throw new Error('サーバー応答の形式が不正です');
+          }
+
           const now = Date.now();
           savedAtMs = now;
           lastSuccessfulFetchAt = now;
@@ -1224,7 +1262,7 @@
 
           try {
             const cacheWrapper = {
-              schemaVersion: 5,
+              schemaVersion: 6,
               savedAtMs: now,
               payload: data
             };
@@ -1236,7 +1274,6 @@
             : (e.message || '通信エラー');
           updateStatusBadges();
 
-          // すでに表示中のデータがある場合は画面を消さずに維持する
           if (!hasRenderedData) {
             contentEl.innerHTML = `
               <div class="error-box">データの取得に失敗しました。\n詳細: ${escapeHtml(lastFetchError)}</div>
@@ -1288,7 +1325,6 @@
         if (btn) resetFilters();
       });
 
-      // 別タブやスマホのホーム画面から戻ってきたとき、5分以上経っていれば即座に再取得
       document.addEventListener('visibilitychange', () => {
         if (!document.hidden) {
           updateStatusBadges();
@@ -1298,12 +1334,10 @@
         }
       });
 
-      // オフライン復帰時の自動再取得
       window.addEventListener('online', () => {
         fetchScheduleData(true);
       });
 
-      // 放置タブでも鮮度バッジが更新されるよう1分ごとに判定
       setInterval(updateStatusBadges, 60 * 1000);
     }
 
@@ -1316,12 +1350,14 @@
       if (rawInitial.startsWith('{')) {
         try {
           const parsed = JSON.parse(rawInitial);
-          const now = Date.now();
-          savedAtMs = now;
-          lastSuccessfulFetchAt = now;
-          render(parsed);
-          scheduleNextAutoFetch();
-          return;
+          if (parsed && Array.isArray(parsed.lives)) {
+            const now = Date.now();
+            savedAtMs = now;
+            lastSuccessfulFetchAt = now;
+            render(parsed);
+            scheduleNextAutoFetch();
+            return;
+          }
         } catch (e) {}
       }
 
@@ -1330,7 +1366,7 @@
         const cachedStr = localStorage.getItem(LOCAL_STORAGE_KEY);
         if (cachedStr) {
           const wrapper = JSON.parse(cachedStr);
-          if (wrapper && wrapper.schemaVersion === 5 && wrapper.payload) {
+          if (wrapper && wrapper.schemaVersion === 6 && wrapper.payload && Array.isArray(wrapper.payload.lives)) {
             savedAtMs = Number(wrapper.savedAtMs) || 0;
             render(wrapper.payload);
             hasLocalCache = true;
