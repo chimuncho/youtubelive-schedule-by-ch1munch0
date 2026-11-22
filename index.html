@@ -21,6 +21,7 @@
       --upcoming-blue: #3ea6ff;
       --member-green: #2ba640;
       --tag-accent: #a78bfa;
+      --warn-amber: #fbbf24;
       --border-subtle: #2c2c2e;
     }
 
@@ -36,6 +37,12 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", Meiryo, sans-serif;
       line-height: 1.38;
       padding-bottom: 40px;
+    }
+
+    button:focus-visible,
+    .card:focus-visible {
+      outline: 2px solid var(--upcoming-blue);
+      outline-offset: 2px;
     }
 
     header {
@@ -65,6 +72,7 @@
       align-items: center;
       gap: 8px;
       letter-spacing: 0.02em;
+      flex-shrink: 0;
     }
 
     .header-title span.dot {
@@ -78,9 +86,33 @@
     .meta-info {
       display: flex;
       align-items: center;
-      gap: 10px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 8px;
       font-size: 0.76rem;
       color: var(--text-sub);
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      font-weight: 600;
+    }
+
+    .status-pill.is-warn {
+      background-color: rgba(251, 191, 36, 0.15);
+      color: var(--warn-amber);
+      border: 1px solid rgba(251, 191, 36, 0.4);
+    }
+
+    .status-pill.is-error {
+      background-color: rgba(255, 0, 51, 0.16);
+      color: #ff6b81;
+      border: 1px solid rgba(255, 0, 51, 0.45);
     }
 
     .reload-btn {
@@ -92,6 +124,7 @@
       font-size: 0.76rem;
       cursor: pointer;
       transition: background-color 0.15s, opacity 0.15s;
+      flex-shrink: 0;
     }
 
     .reload-btn:hover:not(:disabled) {
@@ -506,6 +539,16 @@
       50% { opacity: 0.25; }
     }
 
+    @media (prefers-reduced-motion: reduce) {
+      .live-dot-pulse,
+      .badge-live::before {
+        animation: none;
+      }
+      .card {
+        transition: none;
+      }
+    }
+
     .card-body {
       padding: 8px 10px 10px;
       display: flex;
@@ -600,8 +643,9 @@
         <span>推しスケ！</span>
       </div>
       <div class="meta-info">
+        <span id="status-badges"></span>
         <span id="last-updated">更新: --/-- --:--</span>
-        <button id="reload-btn" class="reload-btn" onclick="fetchScheduleData(false)">再読込</button>
+        <button id="reload-btn" class="reload-btn" type="button">再読込</button>
       </div>
     </div>
   </header>
@@ -612,13 +656,13 @@
         <div class="count-bar" id="count-bar"></div>
       </div>
       <div class="toolbar-right">
-        <button class="filter-toggle-btn" id="filter-toggle-btn" onclick="toggleFilterPanel()" style="display:none;">
+        <button class="filter-toggle-btn" id="filter-toggle-btn" type="button" aria-expanded="false" style="display:none;">
           <span class="filter-toggle-text" id="filter-toggle-text">絞り込み</span>
           <span class="filter-chevron">▼</span>
         </button>
         <div class="sort-toggle">
-          <button class="sort-btn active" id="sort-time" onclick="setSortMode('time')">開始時間順</button>
-          <button class="sort-btn" id="sort-channel" onclick="setSortMode('channel')">チャンネル順</button>
+          <button class="sort-btn active" id="sort-time" type="button" data-sort="time">開始時間順</button>
+          <button class="sort-btn" id="sort-channel" type="button" data-sort="channel">チャンネル順</button>
         </div>
       </div>
     </div>
@@ -626,7 +670,7 @@
     <div class="filter-panel is-collapsed" id="filter-panel" style="display:none;">
       <div class="filter-panel-mobile-header">
         <span>表示するタグ・チャンネルを選択</span>
-        <button class="filter-close-btn" onclick="toggleFilterPanel(false)">閉じる</button>
+        <button class="filter-close-btn" id="filter-close-btn" type="button">閉じる</button>
       </div>
       <div class="filter-row" id="tag-filter-row" style="display:none;">
         <div class="filter-label">タグ</div>
@@ -647,9 +691,36 @@
 
   <script>
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzKEjdp1EPCZ_8jCAvaGfTdOA9kCVBnau0XdnR9-uuj7kYlAbqp-jRQrAouMQnUSqPs/exec';
-    const LOCAL_STORAGE_KEY = 'yt_live_schedule_cache_v4';
+    const LOCAL_STORAGE_KEY = 'yt_live_schedule_cache_v5';
+    const FETCH_TIMEOUT_MS = 15000;
+    const AUTO_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+    const STALE_THRESHOLD_MS = 30 * 60 * 1000;
 
-    let currentPayload = { lives: [], lastUpdated: '未更新', tagOrder: [] };
+    const ALLOWED_THUMB_HOSTS = new Set([
+      'i.ytimg.com',
+      'i1.ytimg.com',
+      'i2.ytimg.com',
+      'i3.ytimg.com',
+      'i4.ytimg.com',
+      'img.youtube.com',
+      'yt3.ggpht.com'
+    ]);
+
+    let currentPayload = {
+      lives: [],
+      lastUpdated: '未更新',
+      lastUpdatedMs: 0,
+      updateStatus: 'success',
+      errorSummary: '',
+      tagOrder: []
+    };
+    let hasRenderedData = false;
+    let savedAtMs = 0;
+    let lastSuccessfulFetchAt = 0;
+    let lastFetchError = '';
+    let isFetching = false;
+    let autoRefreshTimerId = null;
+
     let selectedTag = 'ALL';
     let selectedChannel = 'ALL';
     let sortMode = 'time';
@@ -676,6 +747,18 @@
         .replace(/'/g, '&#039;');
     }
 
+    function sanitizeThumbnailUrl(rawUrl, videoId) {
+      const fallback = videoId ? `https://i.ytimg.com/vi/${encodeURIComponent(videoId)}/maxresdefault.jpg` : '';
+      if (!rawUrl) return fallback;
+      try {
+        const parsed = new URL(String(rawUrl));
+        if (parsed.protocol === 'https:' && ALLOWED_THUMB_HOSTS.has(parsed.hostname.toLowerCase())) {
+          return parsed.href;
+        }
+      } catch (e) {}
+      return fallback;
+    }
+
     function parseTags(tagsStr) {
       if (!tagsStr) return [];
       return String(tagsStr)
@@ -684,12 +767,39 @@
         .filter(t => t.length > 0);
     }
 
+    function updateStatusBadges() {
+      const badgesEl = document.getElementById('status-badges');
+      if (!badgesEl) return;
+
+      const pills = [];
+      const now = Date.now();
+
+      if (lastFetchError) {
+        pills.push(`<span class="status-pill is-error" title="${escapeHtml(lastFetchError)}">⚠ 通信失敗（前回表示中）</span>`);
+      }
+
+      if (currentPayload.updateStatus === 'failed') {
+        pills.push(`<span class="status-pill is-error" title="${escapeHtml(currentPayload.errorSummary)}">⚠ API取得失敗</span>`);
+      } else if (currentPayload.updateStatus === 'partial') {
+        pills.push(`<span class="status-pill is-warn" title="${escapeHtml(currentPayload.errorSummary)}">⚠ 一部取得エラー</span>`);
+      }
+
+      const backendStale = currentPayload.lastUpdatedMs > 0 && (now - currentPayload.lastUpdatedMs > STALE_THRESHOLD_MS);
+      const localStale = savedAtMs > 0 && (now - savedAtMs > STALE_THRESHOLD_MS);
+      if (backendStale || localStale) {
+        pills.push(`<span class="status-pill is-warn">⚠ 古いデータ表示中</span>`);
+      }
+
+      badgesEl.innerHTML = pills.join('');
+    }
+
     function toggleFilterPanel(forceState) {
       isFilterOpen = (typeof forceState === 'boolean') ? forceState : !isFilterOpen;
       const panel = document.getElementById('filter-panel');
       const btn = document.getElementById('filter-toggle-btn');
       panel.classList.toggle('is-collapsed', !isFilterOpen);
       btn.classList.toggle('is-open', isFilterOpen);
+      btn.setAttribute('aria-expanded', String(isFilterOpen));
     }
 
     function selectTag(tag) {
@@ -714,6 +824,15 @@
       document.getElementById('sort-time').classList.toggle('active', mode === 'time');
       document.getElementById('sort-channel').classList.toggle('active', mode === 'channel');
       render();
+    }
+
+    function buildChipButton(label, value, dataKey, isActive, extraClass) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `chip ${extraClass || ''} ${isActive ? 'active' : ''}`.trim();
+      btn.textContent = label;
+      btn.dataset[dataKey] = value;
+      return btn;
     }
 
     function renderFilterControls(allLives) {
@@ -749,14 +868,14 @@
 
       const tagRow = document.getElementById('tag-filter-row');
       const tagChipsEl = document.getElementById('tag-chips');
+      tagChipsEl.innerHTML = '';
+
       if (tagsList.length > 0) {
         tagRow.style.display = 'flex';
-        let tagHtml = `<button class="chip tag-chip ${selectedTag === 'ALL' ? 'active' : ''}" onclick="selectTag('ALL')">すべて</button>`;
+        tagChipsEl.appendChild(buildChipButton('すべて', 'ALL', 'tag', selectedTag === 'ALL', 'tag-chip'));
         tagsList.forEach(tag => {
-          const isActive = selectedTag === tag ? 'active' : '';
-          tagHtml += `<button class="chip tag-chip ${isActive}" onclick="selectTag('${escapeHtml(tag)}')">${escapeHtml(tag)}</button>`;
+          tagChipsEl.appendChild(buildChipButton(tag, tag, 'tag', selectedTag === tag, 'tag-chip'));
         });
-        tagChipsEl.innerHTML = tagHtml;
       } else {
         tagRow.style.display = 'none';
       }
@@ -783,12 +902,11 @@
       }
 
       const channelChipsEl = document.getElementById('channel-chips');
-      let chHtml = `<button class="chip ${selectedChannel === 'ALL' ? 'active' : ''}" onclick="selectChannel('ALL')">すべて</button>`;
+      channelChipsEl.innerHTML = '';
+      channelChipsEl.appendChild(buildChipButton('すべて', 'ALL', 'channel', selectedChannel === 'ALL', ''));
       channelsList.forEach(ch => {
-        const isActive = selectedChannel === ch ? 'active' : '';
-        chHtml += `<button class="chip ${isActive}" onclick="selectChannel('${escapeHtml(ch)}')">${escapeHtml(ch)}</button>`;
+        channelChipsEl.appendChild(buildChipButton(ch, ch, 'channel', selectedChannel === ch, ''));
       });
-      channelChipsEl.innerHTML = chHtml;
 
       const activeLabels = [];
       if (selectedTag !== 'ALL') activeLabels.push(selectedTag);
@@ -839,6 +957,7 @@
         timeLabel = `${displayTimeStr} 開始予定`;
       }
 
+      const safeThumb = sanitizeThumbnailUrl(item.thumbnail, item.videoId);
       const itemTags = parseTags(item.tags);
       const tagsHtml = itemTags.length > 0
         ? `<div class="card-tags">${itemTags.map(t => `<span class="mini-tag">${escapeHtml(t)}</span>`).join('')}</div>`
@@ -846,7 +965,7 @@
 
       card.innerHTML = `
         <div class="thumb-wrap">
-          <img src="${escapeHtml(item.thumbnail)}" alt="" loading="lazy">
+          <img src="${escapeHtml(safeThumb)}" alt="" loading="lazy">
           <div class="badge-group">
             ${statusBadge}
             ${memberBadge}
@@ -868,10 +987,12 @@
     function render(newPayload) {
       if (newPayload) {
         currentPayload = newPayload;
+        hasRenderedData = true;
       }
 
       const allLives = currentPayload.lives || [];
-      document.getElementById('last-updated').textContent = `キャッシュ更新: ${currentPayload.lastUpdated || '未更新'}`;
+      document.getElementById('last-updated').textContent = `更新: ${currentPayload.lastUpdated || '未更新'}`;
+      updateStatusBadges();
 
       renderFilterControls(allLives);
 
@@ -891,7 +1012,7 @@
 
       const isFiltered = (selectedTag !== 'ALL' || selectedChannel !== 'ALL');
       const resetBtnHtml = isFiltered
-        ? `<button class="reset-link" onclick="resetFilters()">解除</button>`
+        ? `<button class="reset-link" type="button" data-action="reset">解除</button>`
         : '';
 
       document.getElementById('count-bar').innerHTML = `
@@ -1034,7 +1155,23 @@
       }
     }
 
+    function scheduleNextAutoFetch() {
+      if (autoRefreshTimerId !== null) {
+        clearTimeout(autoRefreshTimerId);
+      }
+      autoRefreshTimerId = setTimeout(() => {
+        if (!document.hidden) {
+          fetchScheduleData(true);
+        } else {
+          scheduleNextAutoFetch();
+        }
+      }, AUTO_REFRESH_INTERVAL_MS);
+    }
+
     async function fetchScheduleData(isBackground = false) {
+      if (isFetching) return;
+      isFetching = true;
+
       const btn = document.getElementById('reload-btn');
       const contentEl = document.getElementById('content');
       const isGasEnv = (typeof google !== 'undefined' && google.script && google.script.run);
@@ -1045,50 +1182,145 @@
       if (isGasEnv) {
         google.script.run
           .withSuccessHandler((data) => {
+            const now = Date.now();
+            savedAtMs = now;
+            lastSuccessfulFetchAt = now;
+            lastFetchError = '';
             render(data);
+            isFetching = false;
             btn.disabled = false;
             btn.textContent = '再読込';
+            scheduleNextAutoFetch();
           })
           .withFailureHandler((err) => {
-            if (!isBackground) {
-              contentEl.innerHTML = `<div class="error-box">取得エラー: ${escapeHtml(err.message)}</div>`;
+            lastFetchError = err.message || '取得エラー';
+            updateStatusBadges();
+            if (!hasRenderedData) {
+              contentEl.innerHTML = `<div class="error-box">取得エラー: ${escapeHtml(lastFetchError)}</div>`;
             }
+            isFetching = false;
             btn.disabled = false;
             btn.textContent = '再読込';
+            scheduleNextAutoFetch();
           })
           .getCachedLivesData();
       } else {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
         try {
           const requestUrl = `${GAS_API_URL}?api=1&t=${Date.now()}`;
-          const response = await fetch(requestUrl);
+          const response = await fetch(requestUrl, { signal: controller.signal });
           if (!response.ok) {
             throw new Error(`HTTPエラー: ${response.status}`);
           }
           const data = await response.json();
+          const now = Date.now();
+          savedAtMs = now;
+          lastSuccessfulFetchAt = now;
+          lastFetchError = '';
+
           render(data);
+
           try {
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+            const cacheWrapper = {
+              schemaVersion: 5,
+              savedAtMs: now,
+              payload: data
+            };
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cacheWrapper));
           } catch (storageErr) {}
         } catch (e) {
-          if (!isBackground) {
+          lastFetchError = (e.name === 'AbortError')
+            ? '通信がタイムアウトしました'
+            : (e.message || '通信エラー');
+          updateStatusBadges();
+
+          // すでに表示中のデータがある場合は画面を消さずに維持する
+          if (!hasRenderedData) {
             contentEl.innerHTML = `
-              <div class="error-box">データの取得に失敗しました。\n詳細: ${escapeHtml(e.message)}</div>
+              <div class="error-box">データの取得に失敗しました。\n詳細: ${escapeHtml(lastFetchError)}</div>
             `;
           }
         } finally {
+          clearTimeout(timeoutId);
+          isFetching = false;
           btn.disabled = false;
           btn.textContent = '再読込';
+          scheduleNextAutoFetch();
         }
       }
     }
 
+    function setupEventListeners() {
+      document.getElementById('reload-btn').addEventListener('click', () => {
+        fetchScheduleData(false);
+      });
+
+      document.getElementById('filter-toggle-btn').addEventListener('click', () => {
+        toggleFilterPanel();
+      });
+
+      document.getElementById('filter-close-btn').addEventListener('click', () => {
+        toggleFilterPanel(false);
+      });
+
+      document.getElementById('sort-time').addEventListener('click', () => {
+        setSortMode('time');
+      });
+
+      document.getElementById('sort-channel').addEventListener('click', () => {
+        setSortMode('channel');
+      });
+
+      document.getElementById('tag-chips').addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-tag]');
+        if (btn) selectTag(btn.dataset.tag);
+      });
+
+      document.getElementById('channel-chips').addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-channel]');
+        if (btn) selectChannel(btn.dataset.channel);
+      });
+
+      document.getElementById('count-bar').addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-action="reset"]');
+        if (btn) resetFilters();
+      });
+
+      // 別タブやスマホのホーム画面から戻ってきたとき、5分以上経っていれば即座に再取得
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+          updateStatusBadges();
+          if (Date.now() - lastSuccessfulFetchAt >= AUTO_REFRESH_INTERVAL_MS) {
+            fetchScheduleData(true);
+          }
+        }
+      });
+
+      // オフライン復帰時の自動再取得
+      window.addEventListener('online', () => {
+        fetchScheduleData(true);
+      });
+
+      // 放置タブでも鮮度バッジが更新されるよう1分ごとに判定
+      setInterval(updateStatusBadges, 60 * 1000);
+    }
+
     (function init() {
+      setupEventListeners();
+
       const initialEl = document.getElementById('initial-data');
       const rawInitial = initialEl ? initialEl.textContent.trim() : '';
 
       if (rawInitial.startsWith('{')) {
         try {
-          render(JSON.parse(rawInitial));
+          const parsed = JSON.parse(rawInitial);
+          const now = Date.now();
+          savedAtMs = now;
+          lastSuccessfulFetchAt = now;
+          render(parsed);
+          scheduleNextAutoFetch();
           return;
         } catch (e) {}
       }
@@ -1097,8 +1329,12 @@
       try {
         const cachedStr = localStorage.getItem(LOCAL_STORAGE_KEY);
         if (cachedStr) {
-          render(JSON.parse(cachedStr));
-          hasLocalCache = true;
+          const wrapper = JSON.parse(cachedStr);
+          if (wrapper && wrapper.schemaVersion === 5 && wrapper.payload) {
+            savedAtMs = Number(wrapper.savedAtMs) || 0;
+            render(wrapper.payload);
+            hasLocalCache = true;
+          }
         }
       } catch (e) {}
 
