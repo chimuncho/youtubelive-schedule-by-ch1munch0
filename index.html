@@ -471,6 +471,11 @@
       box-shadow: 0 0 10px var(--live-glow);
     }
 
+    .card.is-soon {
+      border: 1.5px solid rgba(251, 191, 36, 0.75);
+      box-shadow: 0 0 10px rgba(251, 191, 36, 0.16);
+    }
+
     .thumb-wrap {
       position: relative;
       width: 100%;
@@ -558,17 +563,45 @@
     }
 
     .schedule-time {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
       font-size: 0.86rem;
       font-weight: 700;
       color: var(--upcoming-blue);
+    }
+
+    .schedule-time-text {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .card.is-member .schedule-time {
       color: #4ade80;
     }
 
+    .card.is-soon .schedule-time {
+      color: #fbbf24;
+    }
+
     .card.is-live .schedule-time {
       color: #ff4d6d;
+    }
+
+    .new-badge {
+      flex-shrink: 0;
+      font-size: 0.65rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      color: #1a1400;
+      background: linear-gradient(135deg, #fde047 0%, #f59e0b 100%);
+      padding: 1px 6px;
+      border-radius: 4px;
+      line-height: 1.35;
+      box-shadow: 0 1px 3px rgba(245, 158, 11, 0.35);
     }
 
     .video-title {
@@ -935,12 +968,16 @@
     }
 
     function createCardElement(item, timeOnlyForUpcoming) {
+      const nowMs = Date.now();
       const isLive = item.status === 'live';
       const isMember = Boolean(item.isMember);
-      const isMemberStarted = isMember && !isLive && item.startTimeMs > 0 && item.startTimeMs <= Date.now();
+      const diffToStartMs = (item.startTimeMs > 0) ? (item.startTimeMs - nowMs) : Infinity;
+      const isStartingSoon = !isLive && item.startTimeMs > 0 && diffToStartMs > 0 && diffToStartMs <= 30 * 60 * 1000;
+      const isMemberStarted = isMember && !isLive && item.startTimeMs > 0 && item.startTimeMs <= nowMs;
+      const isNewItem = (typeof item.seenCount === 'number') && item.seenCount >= 1 && item.seenCount <= 4;
 
       const card = document.createElement('a');
-      card.className = `card ${isLive ? 'is-live' : ''} ${isMember ? 'is-member' : ''}`.trim();
+      card.className = `card ${isLive ? 'is-live' : ''} ${isStartingSoon ? 'is-soon' : ''} ${isMember ? 'is-member' : ''}`.trim();
       card.href = `https://www.youtube.com/watch?v=${encodeURIComponent(item.videoId || '')}`;
       card.target = '_blank';
       card.rel = 'noopener noreferrer';
@@ -953,15 +990,22 @@
         : '';
 
       const displayTimeStr = String(item.displayTime || '');
+      const baseTimeText = (timeOnlyForUpcoming && displayTimeStr.includes(' '))
+        ? displayTimeStr.split(' ')[1]
+        : displayTimeStr;
+
       let timeLabel = '';
       if (isLive) {
         timeLabel = `${displayTimeStr} 開始`;
-      } else if (timeOnlyForUpcoming && displayTimeStr.includes(' ')) {
-        const timePart = displayTimeStr.split(' ')[1];
-        timeLabel = isMemberStarted ? `${timePart} 開始予定（経過）` : `${timePart} 開始予定`;
+      } else if (isStartingSoon) {
+        timeLabel = `${baseTimeText} まもなく配信開始`;
+      } else if (isMemberStarted) {
+        timeLabel = `${baseTimeText} 開始予定（経過）`;
       } else {
-        timeLabel = isMemberStarted ? `${displayTimeStr} 開始予定（経過）` : `${displayTimeStr} 開始予定`;
+        timeLabel = `${baseTimeText} 開始予定`;
       }
+
+      const newBadgeHtml = isNewItem ? `<span class="new-badge">New</span>` : '';
 
       const safeThumb = sanitizeThumbnailUrl(item.thumbnail, item.videoId);
       const itemTags = parseTags(item.tags);
@@ -978,7 +1022,10 @@
           </div>
         </div>
         <div class="card-body">
-          <div class="schedule-time">${escapeHtml(timeLabel)}</div>
+          <div class="schedule-time">
+            <span class="schedule-time-text">${escapeHtml(timeLabel)}</span>
+            ${newBadgeHtml}
+          </div>
           <div class="video-title">${escapeHtml(item.title)}</div>
           <div class="card-footer">
             <div class="channel-name">${escapeHtml(item.channelTitle)}</div>
