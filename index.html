@@ -40,7 +40,9 @@
     }
 
     button:focus-visible,
-    .card:focus-visible {
+    input:focus-visible,
+    .card:focus-visible,
+    .ch-card:focus-visible {
       outline: 2px solid var(--upcoming-blue);
       outline-offset: 2px;
     }
@@ -62,7 +64,15 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 12px;
+      flex-wrap: wrap;
+      gap: 10px 14px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
     }
 
     .header-title {
@@ -83,6 +93,56 @@
       border-radius: 50%;
     }
 
+    /* ビュー切り替えタブ */
+    .view-tabs {
+      display: inline-flex;
+      background-color: var(--section-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .view-tab-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: transparent;
+      color: var(--text-sub);
+      border: none;
+      border-radius: 6px;
+      padding: 4px 11px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .view-tab-btn:hover {
+      color: var(--text-main);
+    }
+
+    .view-tab-btn.active {
+      background-color: var(--card-hover);
+      color: var(--text-main);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+    }
+
+    .tab-badge {
+      font-size: 0.67rem;
+      font-weight: 700;
+      padding: 0 6px;
+      border-radius: 999px;
+      background-color: rgba(255, 255, 255, 0.08);
+      color: var(--text-sub);
+      line-height: 1.45;
+    }
+
+    .view-tab-btn.active .tab-badge {
+      background-color: rgba(62, 166, 255, 0.2);
+      color: var(--upcoming-blue);
+    }
+
     .meta-info {
       display: flex;
       align-items: center;
@@ -91,6 +151,7 @@
       gap: 8px;
       font-size: 0.76rem;
       color: var(--text-sub);
+      margin-left: auto;
     }
 
     .status-pill {
@@ -174,8 +235,52 @@
     .toolbar-right {
       display: flex;
       align-items: center;
+      flex-wrap: wrap;
       gap: 6px;
       margin-left: auto;
+    }
+
+    .search-input-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .search-input {
+      background-color: var(--section-bg);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      border-radius: 7px;
+      padding: 4px 26px 4px 10px;
+      font-size: 0.76rem;
+      width: 175px;
+      transition: border-color 0.15s, width 0.15s;
+    }
+
+    .search-input::placeholder {
+      color: var(--text-sub);
+      opacity: 0.75;
+    }
+
+    .search-input:focus {
+      border-color: var(--upcoming-blue);
+    }
+
+    .search-clear-btn {
+      position: absolute;
+      right: 6px;
+      background: none;
+      border: none;
+      color: var(--text-sub);
+      font-size: 0.85rem;
+      cursor: pointer;
+      padding: 0 3px;
+      line-height: 1;
+      display: none;
+    }
+
+    .search-clear-btn.is-visible {
+      display: block;
     }
 
     .filter-toggle-btn {
@@ -420,6 +525,7 @@
       flex-shrink: 0;
     }
 
+    /* 配信カードグリッド */
     .grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -549,7 +655,8 @@
       .badge-live::before {
         animation: none;
       }
-      .card {
+      .card,
+      .ch-card {
         transition: none;
       }
     }
@@ -591,7 +698,7 @@
       color: #ff4d6d;
     }
 
-  .new-badge { 
+    .new-badge {
       flex-shrink: 0;
       font-size: 0.65rem;
       font-weight: 800;
@@ -635,6 +742,7 @@
       display: flex;
       gap: 3px;
       flex-shrink: 0;
+      flex-wrap: wrap;
     }
 
     .mini-tag {
@@ -644,6 +752,130 @@
       background-color: rgba(167, 139, 250, 0.15);
       color: var(--tag-accent);
       border: 1px solid rgba(167, 139, 250, 0.3);
+    }
+
+    /* チャンネル一覧グリッド・カード */
+    .ch-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    @media (min-width: 560px) {
+      .ch-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+      }
+    }
+
+    @media (min-width: 900px) {
+      .ch-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    @media (min-width: 1240px) {
+      .ch-grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+
+    .ch-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 11px;
+      padding: 12px 13px;
+      text-decoration: none;
+      color: inherit;
+      transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+      min-width: 0;
+    }
+
+    .ch-card:hover {
+      background-color: var(--card-hover);
+      transform: translateY(-2px);
+    }
+
+    .ch-card.is-live-now {
+      border-color: rgba(255, 0, 51, 0.65);
+      box-shadow: 0 0 10px rgba(255, 0, 51, 0.16);
+    }
+
+    .ch-avatar-wrap {
+      position: relative;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background-color: #27272b;
+      border: 1.5px solid #38383d;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--text-sub);
+    }
+
+    .ch-card.is-live-now .ch-avatar-wrap {
+      border-color: var(--live-red);
+    }
+
+    .ch-avatar-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+      display: block;
+    }
+
+    .ch-live-pill {
+      position: absolute;
+      bottom: -4px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: var(--live-red);
+      color: #ffffff;
+      font-size: 0.58rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      padding: 1px 5px;
+      border-radius: 4px;
+      line-height: 1.25;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
+      white-space: nowrap;
+    }
+
+    .ch-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .ch-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ch-subs {
+      font-size: 0.74rem;
+      color: var(--text-sub);
+    }
+
+    .ch-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 2px;
     }
 
     .empty-state {
@@ -671,9 +903,21 @@
 
   <header>
     <div class="header-inner">
-      <div class="header-title">
-        <span class="dot"></span>
-        <span>推しスケ！</span>
+      <div class="header-left">
+        <div class="header-title">
+          <span class="dot"></span>
+          <span>推しスケ！</span>
+        </div>
+        <nav class="view-tabs" aria-label="表示切り替え">
+          <button class="view-tab-btn active" id="tab-schedule" type="button" data-view="schedule">
+            <span>配信スケジュール</span>
+            <span class="tab-badge" id="tab-badge-schedule">0</span>
+          </button>
+          <button class="view-tab-btn" id="tab-channels" type="button" data-view="channels">
+            <span>チャンネル一覧</span>
+            <span class="tab-badge" id="tab-badge-channels">0</span>
+          </button>
+        </nav>
       </div>
       <div class="meta-info">
         <span id="status-badges"></span>
@@ -689,57 +933,77 @@
         <div class="count-bar" id="count-bar"></div>
       </div>
       <div class="toolbar-right">
+        <div class="search-input-wrap" id="ch-search-wrap" style="display:none;">
+          <input class="search-input" id="ch-search-input" type="search" placeholder="チャンネル名・タグ検索" aria-label="チャンネル検索">
+          <button class="search-clear-btn" id="ch-search-clear" type="button" aria-label="検索をクリア">×</button>
+        </div>
+
         <button class="filter-toggle-btn" id="filter-toggle-btn" type="button" aria-expanded="false" style="display:none;">
           <span class="filter-toggle-text" id="filter-toggle-text">絞り込み</span>
           <span class="filter-chevron">▼</span>
         </button>
-        <div class="sort-toggle">
+
+        <div class="sort-toggle" id="schedule-sort-toggle">
           <button class="sort-btn active" id="sort-time" type="button" data-sort="time">開始時間順</button>
           <button class="sort-btn" id="sort-channel" type="button" data-sort="channel">チャンネル別</button>
+        </div>
+
+        <div class="sort-toggle" id="channel-sort-toggle" style="display:none;">
+          <button class="sort-btn active" id="ch-sort-order" type="button" data-ch-sort="order">登録順</button>
+          <button class="sort-btn" id="ch-sort-subs" type="button" data-ch-sort="subs">登録者数順</button>
+          <button class="sort-btn" id="ch-sort-name" type="button" data-ch-sort="name">名前順</button>
         </div>
       </div>
     </div>
 
     <div class="filter-panel is-collapsed" id="filter-panel" style="display:none;">
       <div class="filter-panel-mobile-header">
-        <span>表示するタグ・チャンネルを選択</span>
+        <span id="filter-panel-mobile-title">表示するタグ・チャンネルを選択</span>
         <button class="filter-close-btn" id="filter-close-btn" type="button">閉じる</button>
       </div>
       <div class="filter-row" id="tag-filter-row" style="display:none;">
         <div class="filter-label">タグ</div>
         <div class="chip-group" id="tag-chips"></div>
       </div>
-      <div class="filter-row">
+      <div class="filter-row" id="channel-filter-row">
         <div class="filter-label">チャンネル</div>
         <div class="chip-group" id="channel-chips"></div>
       </div>
     </div>
 
     <div id="content">
-      <div class="empty-state">配信スケジュールを読み込み中...</div>
+      <div class="empty-state">データを読み込み中...</div>
     </div>
   </main>
 
   <script>
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzKEjdp1EPCZ_8jCAvaGfTdOA9kCVBnau0XdnR9-uuj7kYlAbqp-jRQrAouMQnUSqPs/exec';
-    const LOCAL_STORAGE_KEY = 'yt_live_schedule_cache_v6';
+    const LOCAL_STORAGE_KEY = 'yt_live_schedule_cache_v7';
     const FETCH_TIMEOUT_MS = 15000;
     const AUTO_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
     const STALE_THRESHOLD_MS = 30 * 60 * 1000;
     const TRIGGER_STALL_THRESHOLD_MS = 45 * 60 * 1000;
 
-    const ALLOWED_THUMB_HOSTS = new Set([
+    const ALLOWED_IMAGE_HOSTS = new Set([
       'i.ytimg.com',
       'i1.ytimg.com',
       'i2.ytimg.com',
       'i3.ytimg.com',
       'i4.ytimg.com',
       'img.youtube.com',
-      'yt3.ggpht.com'
+      'yt3.ggpht.com',
+      'yt3.googleusercontent.com'
+    ]);
+
+    const ALLOWED_CHANNEL_HOSTS = new Set([
+      'www.youtube.com',
+      'youtube.com',
+      'm.youtube.com'
     ]);
 
     let currentPayload = {
       lives: [],
+      channels: [],
       lastUpdated: '未更新',
       lastUpdatedMs: 0,
       lastAttemptedMs: 0,
@@ -754,10 +1018,19 @@
     let isFetching = false;
     let autoRefreshTimerId = null;
 
+    // 共通UI状態
+    let activeView = (location.hash === '#channels') ? 'channels' : 'schedule';
+    let isFilterOpen = false;
+
+    // 配信スケジュール用状態
     let selectedTag = 'ALL';
     let selectedChannel = 'ALL';
     let sortMode = 'time';
-    let isFilterOpen = false;
+
+    // チャンネル一覧用状態
+    let selectedDirTag = 'ALL';
+    let dirSearchQuery = '';
+    let dirSortMode = 'order';
 
     function getJstDateLabels() {
       const now = new Date();
@@ -780,12 +1053,26 @@
         .replace(/'/g, '&#039;');
     }
 
-    function sanitizeThumbnailUrl(rawUrl, videoId) {
+    function sanitizeImageUrl(rawUrl, videoId) {
       const fallback = videoId ? `https://i.ytimg.com/vi/${encodeURIComponent(videoId)}/hqdefault.jpg` : '';
       if (!rawUrl) return fallback;
       try {
         const parsed = new URL(String(rawUrl));
-        if (parsed.protocol === 'https:' && ALLOWED_THUMB_HOSTS.has(parsed.hostname.toLowerCase())) {
+        if (parsed.protocol === 'https:' && ALLOWED_IMAGE_HOSTS.has(parsed.hostname.toLowerCase())) {
+          return parsed.href;
+        }
+      } catch (e) {}
+      return fallback;
+    }
+
+    function sanitizeChannelUrl(rawUrl, channelId) {
+      const fallback = channelId
+        ? `https://www.youtube.com/channel/${encodeURIComponent(channelId)}`
+        : 'https://www.youtube.com/';
+      if (!rawUrl) return fallback;
+      try {
+        const parsed = new URL(String(rawUrl));
+        if (parsed.protocol === 'https:' && ALLOWED_CHANNEL_HOSTS.has(parsed.hostname.toLowerCase())) {
           return parsed.href;
         }
       } catch (e) {}
@@ -798,6 +1085,18 @@
         .split(/[,、]/)
         .map(t => t.trim())
         .filter(t => t.length > 0);
+    }
+
+    function formatSubscriberCount(count) {
+      if (count === null || count === undefined || count === '' || isNaN(Number(count))) {
+        return '登録者数非公開';
+      }
+      const num = Number(count);
+      if (num >= 10000) {
+        const man = (num / 10000).toFixed(num >= 100000 ? 1 : 2).replace(/\.?0+$/, '');
+        return `登録者 ${man}万人`;
+      }
+      return `登録者 ${num.toLocaleString('ja-JP')}人`;
     }
 
     function updateStatusBadges() {
@@ -830,6 +1129,20 @@
       badgesEl.innerHTML = pills.join('');
     }
 
+    function switchView(view) {
+      if (view !== 'schedule' && view !== 'channels') return;
+      activeView = view;
+
+      const nextHash = view === 'channels' ? '#channels' : '';
+      if (nextHash) {
+        history.replaceState(null, '', nextHash);
+      } else if (location.hash) {
+        history.replaceState(null, '', location.pathname + location.search);
+      }
+
+      render();
+    }
+
     function toggleFilterPanel(forceState) {
       isFilterOpen = (typeof forceState === 'boolean') ? forceState : !isFilterOpen;
       const panel = document.getElementById('filter-panel');
@@ -840,8 +1153,12 @@
     }
 
     function selectTag(tag) {
-      selectedTag = tag;
-      selectedChannel = 'ALL';
+      if (activeView === 'channels') {
+        selectedDirTag = tag;
+      } else {
+        selectedTag = tag;
+        selectedChannel = 'ALL';
+      }
       render();
     }
 
@@ -851,8 +1168,17 @@
     }
 
     function resetFilters() {
-      selectedTag = 'ALL';
-      selectedChannel = 'ALL';
+      if (activeView === 'channels') {
+        selectedDirTag = 'ALL';
+        dirSearchQuery = '';
+        const searchInput = document.getElementById('ch-search-input');
+        const clearBtn = document.getElementById('ch-search-clear');
+        if (searchInput) searchInput.value = '';
+        if (clearBtn) clearBtn.classList.remove('is-visible');
+      } else {
+        selectedTag = 'ALL';
+        selectedChannel = 'ALL';
+      }
       render();
     }
 
@@ -860,6 +1186,14 @@
       sortMode = mode;
       document.getElementById('sort-time').classList.toggle('active', mode === 'time');
       document.getElementById('sort-channel').classList.toggle('active', mode === 'channel');
+      render();
+    }
+
+    function setDirSortMode(mode) {
+      dirSortMode = mode;
+      document.getElementById('ch-sort-order').classList.toggle('active', mode === 'order');
+      document.getElementById('ch-sort-subs').classList.toggle('active', mode === 'subs');
+      document.getElementById('ch-sort-name').classList.toggle('active', mode === 'name');
       render();
     }
 
@@ -872,10 +1206,128 @@
       return btn;
     }
 
-    function renderFilterControls(allLives) {
+    function sortChronologically(items) {
+      return [...items].sort((a, b) => {
+        if (a.status !== b.status) {
+          return a.status === 'live' ? -1 : 1;
+        }
+        return a.startTimeMs - b.startTimeMs;
+      });
+    }
+
+    function createCardElement(item, timeOnlyForUpcoming) {
+      const nowMs = Date.now();
+      const isLive = item.status === 'live';
+      const isMember = Boolean(item.isMember);
+      const diffToStartMs = (item.startTimeMs > 0) ? (item.startTimeMs - nowMs) : Infinity;
+      const isStartingSoon = !isLive && item.startTimeMs > 0 && diffToStartMs > 0 && diffToStartMs <= 30 * 60 * 1000;
+      const isMemberStarted = isMember && !isLive && item.startTimeMs > 0 && item.startTimeMs <= nowMs;
+      const isNewItem = (typeof item.seenCount === 'number') && item.seenCount >= 1 && item.seenCount <= 4;
+
+      const card = document.createElement('a');
+      card.className = `card ${isLive ? 'is-live' : ''} ${isStartingSoon ? 'is-soon' : ''} ${isMember ? 'is-member' : ''}`.trim();
+      card.href = `https://www.youtube.com/watch?v=${encodeURIComponent(item.videoId || '')}`;
+      card.target = '_blank';
+      card.rel = 'noopener noreferrer';
+
+      const statusBadge = isLive
+        ? `<span class="badge badge-live">LIVE</span>`
+        : `<span class="badge badge-upcoming">配信予定</span>`;
+      const memberBadge = isMember
+        ? `<span class="badge badge-member">${isMemberStarted ? 'メン限・開始済？' : 'メン限'}</span>`
+        : '';
+
+      const displayTimeStr = String(item.displayTime || '');
+      const baseTimeText = (timeOnlyForUpcoming && displayTimeStr.includes(' '))
+        ? displayTimeStr.split(' ')[1]
+        : displayTimeStr;
+
+      let timeLabel = '';
+      if (isLive) {
+        timeLabel = `${displayTimeStr} 開始`;
+      } else if (isStartingSoon) {
+        timeLabel = `${baseTimeText} まもなく配信開始`;
+      } else if (isMemberStarted) {
+        timeLabel = `${baseTimeText} 開始予定（経過）`;
+      } else {
+        timeLabel = `${baseTimeText} 開始予定`;
+      }
+
+      const newBadgeHtml = isNewItem ? `<span class="new-badge">New</span>` : '';
+
+      const safeThumb = sanitizeImageUrl(item.thumbnail, item.videoId);
+      const itemTags = parseTags(item.tags);
+      const tagsHtml = itemTags.length > 0
+        ? `<div class="card-tags">${itemTags.map(t => `<span class="mini-tag">${escapeHtml(t)}</span>`).join('')}</div>`
+        : '';
+
+      card.innerHTML = `
+        <div class="thumb-wrap">
+          <img src="${escapeHtml(safeThumb)}" alt="" loading="lazy">
+          <div class="badge-group">
+            ${statusBadge}
+            ${memberBadge}
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="schedule-time">
+            <span class="schedule-time-text">${escapeHtml(timeLabel)}</span>
+            ${newBadgeHtml}
+          </div>
+          <div class="video-title">${escapeHtml(item.title)}</div>
+          <div class="card-footer">
+            <div class="channel-name">${escapeHtml(item.channelTitle)}</div>
+            ${tagsHtml}
+          </div>
+        </div>
+      `;
+
+      return card;
+    }
+
+    function createChannelCardElement(ch, isLiveNow) {
+      const card = document.createElement('a');
+      card.className = `ch-card ${isLiveNow ? 'is-live-now' : ''}`.trim();
+      card.href = sanitizeChannelUrl(ch.channelUrl, ch.channelId);
+      card.target = '_blank';
+      card.rel = 'noopener noreferrer';
+
+      const safeIcon = sanitizeImageUrl(ch.iconUrl, '');
+      const initialChar = String(ch.channelTitle || '?').trim().charAt(0) || '?';
+      const avatarHtml = safeIcon
+        ? `<img src="${escapeHtml(safeIcon)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove();">`
+        : `<span>${escapeHtml(initialChar)}</span>`;
+
+      const liveBadgeHtml = isLiveNow ? `<span class="ch-live-pill">LIVE</span>` : '';
+      const subText = formatSubscriberCount(ch.subscriberCount);
+      const itemTags = parseTags(ch.tags);
+      const tagsHtml = itemTags.length > 0
+        ? `<div class="ch-tags">${itemTags.map(t => `<span class="mini-tag">${escapeHtml(t)}</span>`).join('')}</div>`
+        : '';
+
+      card.innerHTML = `
+        <div class="ch-avatar-wrap">
+          ${avatarHtml}
+          ${liveBadgeHtml}
+        </div>
+        <div class="ch-info">
+          <div class="ch-title" title="${escapeHtml(ch.channelTitle)}">${escapeHtml(ch.channelTitle)}</div>
+          <div class="ch-subs">${escapeHtml(subText)}</div>
+          ${tagsHtml}
+        </div>
+      `;
+
+      return card;
+    }
+
+    function renderScheduleFilterControls(allLives) {
       const filterPanel = document.getElementById('filter-panel');
       const toggleBtn = document.getElementById('filter-toggle-btn');
       const toggleText = document.getElementById('filter-toggle-text');
+      const channelRow = document.getElementById('channel-filter-row');
+      const mobileTitle = document.getElementById('filter-panel-mobile-title');
+
+      mobileTitle.textContent = '表示するタグ・チャンネルを選択';
 
       if (allLives.length === 0) {
         filterPanel.style.display = 'none';
@@ -885,6 +1337,7 @@
 
       filterPanel.style.display = 'flex';
       toggleBtn.style.display = '';
+      channelRow.style.display = 'flex';
 
       const tagSet = new Set();
       allLives.forEach(item => {
@@ -894,9 +1347,7 @@
       const tagsList = Array.from(tagSet).sort((a, b) => {
         const idxA = masterTagOrder.indexOf(a);
         const idxB = masterTagOrder.indexOf(b);
-        const orderA = idxA === -1 ? 9999 : idxA;
-        const orderB = idxB === -1 ? 9999 : idxB;
-        return orderA - orderB;
+        return (idxA === -1 ? 9999 : idxA) - (idxB === -1 ? 9999 : idxB);
       });
 
       if (selectedTag !== 'ALL' && !tagSet.has(selectedTag)) {
@@ -958,96 +1409,61 @@
       }
     }
 
-    function sortChronologically(items) {
-      return [...items].sort((a, b) => {
-        if (a.status !== b.status) {
-          return a.status === 'live' ? -1 : 1;
-        }
-        return a.startTimeMs - b.startTimeMs;
+    function renderChannelFilterControls(allChannels) {
+      const filterPanel = document.getElementById('filter-panel');
+      const toggleBtn = document.getElementById('filter-toggle-btn');
+      const toggleText = document.getElementById('filter-toggle-text');
+      const tagRow = document.getElementById('tag-filter-row');
+      const channelRow = document.getElementById('channel-filter-row');
+      const mobileTitle = document.getElementById('filter-panel-mobile-title');
+
+      mobileTitle.textContent = '表示するタグを選択';
+      channelRow.style.display = 'none';
+
+      const tagSet = new Set();
+      allChannels.forEach(ch => {
+        parseTags(ch.tags).forEach(t => tagSet.add(t));
       });
-    }
 
-    function createCardElement(item, timeOnlyForUpcoming) {
-      const nowMs = Date.now();
-      const isLive = item.status === 'live';
-      const isMember = Boolean(item.isMember);
-      const diffToStartMs = (item.startTimeMs > 0) ? (item.startTimeMs - nowMs) : Infinity;
-      const isStartingSoon = !isLive && item.startTimeMs > 0 && diffToStartMs > 0 && diffToStartMs <= 30 * 60 * 1000;
-      const isMemberStarted = isMember && !isLive && item.startTimeMs > 0 && item.startTimeMs <= nowMs;
-      const isNewItem = (typeof item.seenCount === 'number') && item.seenCount >= 1 && item.seenCount <= 4;
+      if (selectedDirTag !== 'ALL' && !tagSet.has(selectedDirTag)) {
+        selectedDirTag = 'ALL';
+      }
 
-      const card = document.createElement('a');
-      card.className = `card ${isLive ? 'is-live' : ''} ${isStartingSoon ? 'is-soon' : ''} ${isMember ? 'is-member' : ''}`.trim();
-      card.href = `https://www.youtube.com/watch?v=${encodeURIComponent(item.videoId || '')}`;
-      card.target = '_blank';
-      card.rel = 'noopener noreferrer';
+      if (allChannels.length === 0 || tagSet.size === 0) {
+        filterPanel.style.display = 'none';
+        toggleBtn.style.display = 'none';
+        return;
+      }
 
-      const statusBadge = isLive
-        ? `<span class="badge badge-live">LIVE</span>`
-        : `<span class="badge badge-upcoming">配信予定</span>`;
-      const memberBadge = isMember
-        ? `<span class="badge badge-member">${isMemberStarted ? 'メン限・開始済？' : 'メン限'}</span>`
-        : '';
+      const masterTagOrder = Array.isArray(currentPayload.tagOrder) ? currentPayload.tagOrder : [];
+      const tagsList = Array.from(tagSet).sort((a, b) => {
+        const idxA = masterTagOrder.indexOf(a);
+        const idxB = masterTagOrder.indexOf(b);
+        return (idxA === -1 ? 9999 : idxA) - (idxB === -1 ? 9999 : idxB);
+      });
 
-      const displayTimeStr = String(item.displayTime || '');
-      const baseTimeText = (timeOnlyForUpcoming && displayTimeStr.includes(' '))
-        ? displayTimeStr.split(' ')[1]
-        : displayTimeStr;
+      filterPanel.style.display = 'flex';
+      toggleBtn.style.display = '';
+      tagRow.style.display = 'flex';
 
-      let timeLabel = '';
-      if (isLive) {
-        timeLabel = `${displayTimeStr} 開始`;
-      } else if (isStartingSoon) {
-        timeLabel = `${baseTimeText} まもなく配信開始`;
-      } else if (isMemberStarted) {
-        timeLabel = `${baseTimeText} 開始予定（経過）`;
+      const tagChipsEl = document.getElementById('tag-chips');
+      tagChipsEl.innerHTML = '';
+      tagChipsEl.appendChild(buildChipButton('すべて', 'ALL', 'tag', selectedDirTag === 'ALL', 'tag-chip'));
+      tagsList.forEach(tag => {
+        tagChipsEl.appendChild(buildChipButton(tag, tag, 'tag', selectedDirTag === tag, 'tag-chip'));
+      });
+
+      if (selectedDirTag !== 'ALL') {
+        toggleBtn.classList.add('has-filter');
+        toggleText.textContent = selectedDirTag;
       } else {
-        timeLabel = `${baseTimeText} 開始予定`;
+        toggleBtn.classList.remove('has-filter');
+        toggleText.textContent = 'タグ絞り込み';
       }
-
-      const newBadgeHtml = isNewItem ? `<span class="new-badge">New</span>` : '';
-
-      const safeThumb = sanitizeThumbnailUrl(item.thumbnail, item.videoId);
-      const itemTags = parseTags(item.tags);
-      const tagsHtml = itemTags.length > 0
-        ? `<div class="card-tags">${itemTags.map(t => `<span class="mini-tag">${escapeHtml(t)}</span>`).join('')}</div>`
-        : '';
-
-      card.innerHTML = `
-        <div class="thumb-wrap">
-          <img src="${escapeHtml(safeThumb)}" alt="" loading="lazy">
-          <div class="badge-group">
-            ${statusBadge}
-            ${memberBadge}
-          </div>
-        </div>
-        <div class="card-body">
-          <div class="schedule-time">
-            <span class="schedule-time-text">${escapeHtml(timeLabel)}</span>
-            ${newBadgeHtml}
-          </div>
-          <div class="video-title">${escapeHtml(item.title)}</div>
-          <div class="card-footer">
-            <div class="channel-name">${escapeHtml(item.channelTitle)}</div>
-            ${tagsHtml}
-          </div>
-        </div>
-      `;
-
-      return card;
     }
 
-    function render(newPayload) {
-      if (newPayload) {
-        currentPayload = newPayload;
-        hasRenderedData = true;
-      }
-
-      const allLives = currentPayload.lives || [];
-      document.getElementById('last-updated').textContent = `更新: ${currentPayload.lastUpdated || '未更新'}`;
-      updateStatusBadges();
-
-      renderFilterControls(allLives);
+    function renderScheduleView(allLives) {
+      renderScheduleFilterControls(allLives);
 
       const filteredLives = allLives.filter(item => {
         if (selectedTag !== 'ALL' && !parseTags(item.tags).includes(selectedTag)) {
@@ -1208,6 +1624,123 @@
       }
     }
 
+    function renderChannelsView(allChannels, allLives) {
+      renderChannelFilterControls(allChannels);
+
+      const liveChannelIds = new Set();
+      allLives.forEach(item => {
+        if (item.status === 'live' && item.channelId) {
+          liveChannelIds.add(String(item.channelId).trim());
+        }
+      });
+
+      const q = dirSearchQuery.trim().toLowerCase();
+      const filteredChannels = allChannels.filter(ch => {
+        if (selectedDirTag !== 'ALL' && !parseTags(ch.tags).includes(selectedDirTag)) {
+          return false;
+        }
+        if (q) {
+          const titleHit = String(ch.channelTitle || '').toLowerCase().includes(q);
+          const tagHit = String(ch.tags || '').toLowerCase().includes(q);
+          if (!titleHit && !tagHit) return false;
+        }
+        return true;
+      });
+
+      const sortedChannels = [...filteredChannels].sort((a, b) => {
+        if (dirSortMode === 'subs') {
+          const sa = (typeof a.subscriberCount === 'number') ? a.subscriberCount : -1;
+          const sb = (typeof b.subscriberCount === 'number') ? b.subscriberCount : -1;
+          if (sb !== sa) return sb - sa;
+          return (a.sortOrder || 9999) - (b.sortOrder || 9999);
+        }
+        if (dirSortMode === 'name') {
+          return String(a.channelTitle || '').localeCompare(String(b.channelTitle || ''), 'ja');
+        }
+        return (a.sortOrder || 9999) - (b.sortOrder || 9999);
+      });
+
+      const isFiltered = (selectedDirTag !== 'ALL' || q.length > 0);
+      const resetBtnHtml = isFiltered
+        ? `<button class="reset-link" type="button" data-action="reset">解除</button>`
+        : '';
+
+      const countLabel = isFiltered
+        ? `表示中: ${sortedChannels.length} / ${allChannels.length}チャンネル`
+        : `登録チャンネル: ${allChannels.length}件`;
+
+      document.getElementById('count-bar').innerHTML = `
+        <span>${countLabel}</span>
+        ${resetBtnHtml}
+      `;
+
+      const contentEl = document.getElementById('content');
+      contentEl.innerHTML = '';
+
+      if (sortedChannels.length === 0) {
+        contentEl.innerHTML = `
+          <div class="empty-state">
+            ${allChannels.length === 0
+              ? '登録されているチャンネルはまだありません。<br>YouTubeのチャンネルページでブックマークレットを実行すると追加できます。'
+              : '選択中の条件に一致するチャンネルはありません。'}
+          </div>
+        `;
+        return;
+      }
+
+      const section = document.createElement('section');
+      section.className = 'section-box';
+      const grid = document.createElement('div');
+      grid.className = 'ch-grid';
+
+      sortedChannels.forEach(ch => {
+        const isLiveNow = liveChannelIds.has(String(ch.channelId || '').trim());
+        grid.appendChild(createChannelCardElement(ch, isLiveNow));
+      });
+
+      section.appendChild(grid);
+      contentEl.appendChild(section);
+    }
+
+    function render(newPayload) {
+      if (newPayload) {
+        currentPayload = Object.assign({
+          lives: [],
+          channels: [],
+          lastUpdated: '未更新',
+          lastUpdatedMs: 0,
+          lastAttemptedMs: 0,
+          updateStatus: 'success',
+          errorSummary: '',
+          tagOrder: []
+        }, newPayload);
+        hasRenderedData = true;
+      }
+
+      const allLives = Array.isArray(currentPayload.lives) ? currentPayload.lives : [];
+      const allChannels = Array.isArray(currentPayload.channels) ? currentPayload.channels : [];
+
+      document.getElementById('last-updated').textContent = `更新: ${currentPayload.lastUpdated || '未更新'}`;
+      document.getElementById('tab-badge-schedule').textContent = String(allLives.length);
+      document.getElementById('tab-badge-channels').textContent = String(allChannels.length);
+
+      const isChannels = activeView === 'channels';
+      document.getElementById('tab-schedule').classList.toggle('active', !isChannels);
+      document.getElementById('tab-channels').classList.toggle('active', isChannels);
+
+      document.getElementById('schedule-sort-toggle').style.display = isChannels ? 'none' : 'inline-flex';
+      document.getElementById('channel-sort-toggle').style.display = isChannels ? 'inline-flex' : 'none';
+      document.getElementById('ch-search-wrap').style.display = isChannels ? 'inline-flex' : 'none';
+
+      updateStatusBadges();
+
+      if (isChannels) {
+        renderChannelsView(allChannels, allLives);
+      } else {
+        renderScheduleView(allLives);
+      }
+    }
+
     function scheduleNextAutoFetch() {
       if (autoRefreshTimerId !== null) {
         clearTimeout(autoRefreshTimerId);
@@ -1231,58 +1764,66 @@
       btn.disabled = true;
       btn.textContent = isBackground ? '更新中...' : '読込中...';
 
-      const controller = new AbortController(); // [T-1]
-      const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS); // [T-1]
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
-      try { // [T-1]
-        const requestUrl = `${GAS_API_URL}?api=1&t=${Date.now()}`; // [T-1]
-        const response = await fetch(requestUrl, { signal: controller.signal }); // [T-1]
-        if (!response.ok) { // [T-1]
-          throw new Error(`HTTPエラー: ${response.status}`); // [T-1]
-        } // [T-1]
-        const data = await response.json(); // [T-1]
-        if (!data || !Array.isArray(data.lives)) { // [T-1]
-          throw new Error('サーバー応答の形式が不正です'); // [T-1]
-        } // [T-1]
+      try {
+        const requestUrl = `${GAS_API_URL}?api=1&t=${Date.now()}`;
+        const response = await fetch(requestUrl, { signal: controller.signal });
+        if (!response.ok) {
+          throw new Error(`HTTPエラー: ${response.status}`);
+        }
+        const data = await response.json();
+        if (!data || !Array.isArray(data.lives)) {
+          throw new Error('サーバー応答の形式が不正です');
+        }
 
-        const now = Date.now(); // [T-1]
-        savedAtMs = now; // [T-1]
-        lastSuccessfulFetchAt = now; // [T-1]
-        lastFetchError = ''; // [T-1]
+        const now = Date.now();
+        savedAtMs = now;
+        lastSuccessfulFetchAt = now;
+        lastFetchError = '';
 
-        render(data); // [T-1]
+        render(data);
 
-        try { // [T-1]
-          const cacheWrapper = { // [T-1]
-            schemaVersion: 6, // [T-1]
-            savedAtMs: now, // [T-1]
-            payload: data // [T-1]
-          }; // [T-1]
-          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cacheWrapper)); // [T-1]
-        } catch (storageErr) {} // [T-1]
-      } catch (e) { // [T-1]
-        lastFetchError = (e.name === 'AbortError') // [T-1]
-          ? '通信がタイムアウトしました' // [T-1]
-          : (e.message || '通信エラー'); // [T-1]
-        updateStatusBadges(); // [T-1]
+        try {
+          const cacheWrapper = {
+            schemaVersion: 7,
+            savedAtMs: now,
+            payload: data
+          };
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cacheWrapper));
+        } catch (storageErr) {}
+      } catch (e) {
+        lastFetchError = (e.name === 'AbortError')
+          ? '通信がタイムアウトしました'
+          : (e.message || '通信エラー');
+        updateStatusBadges();
 
-        if (!hasRenderedData) { // [T-1]
+        if (!hasRenderedData) {
           contentEl.innerHTML = `
             <div class="error-box">データの取得に失敗しました。\n詳細: ${escapeHtml(lastFetchError)}</div>
-          `; // [T-1]
-        } // [T-1]
-      } finally { // [T-1]
-        clearTimeout(timeoutId); // [T-1]
-        isFetching = false; // [T-1]
-        btn.disabled = false; // [T-1]
-        btn.textContent = '再読込'; // [T-1]
-        scheduleNextAutoFetch(); // [T-1]
-      } // [T-1]
+          `;
+        }
+      } finally {
+        clearTimeout(timeoutId);
+        isFetching = false;
+        btn.disabled = false;
+        btn.textContent = '再読込';
+        scheduleNextAutoFetch();
+      }
     }
 
     function setupEventListeners() {
       document.getElementById('reload-btn').addEventListener('click', () => {
         fetchScheduleData(false);
+      });
+
+      document.getElementById('tab-schedule').addEventListener('click', () => {
+        switchView('schedule');
+      });
+
+      document.getElementById('tab-channels').addEventListener('click', () => {
+        switchView('channels');
       });
 
       document.getElementById('filter-toggle-btn').addEventListener('click', () => {
@@ -1301,6 +1842,35 @@
         setSortMode('channel');
       });
 
+      document.getElementById('ch-sort-order').addEventListener('click', () => {
+        setDirSortMode('order');
+      });
+
+      document.getElementById('ch-sort-subs').addEventListener('click', () => {
+        setDirSortMode('subs');
+      });
+
+      document.getElementById('ch-sort-name').addEventListener('click', () => {
+        setDirSortMode('name');
+      });
+
+      const searchInput = document.getElementById('ch-search-input');
+      const clearBtn = document.getElementById('ch-search-clear');
+
+      searchInput.addEventListener('input', () => {
+        dirSearchQuery = searchInput.value;
+        clearBtn.classList.toggle('is-visible', dirSearchQuery.length > 0);
+        render();
+      });
+
+      clearBtn.addEventListener('click', () => {
+        dirSearchQuery = '';
+        searchInput.value = '';
+        clearBtn.classList.remove('is-visible');
+        searchInput.focus();
+        render();
+      });
+
       document.getElementById('tag-chips').addEventListener('click', (e) => {
         const btn = e.target.closest('button[data-tag]');
         if (btn) selectTag(btn.dataset.tag);
@@ -1314,6 +1884,14 @@
       document.getElementById('count-bar').addEventListener('click', (e) => {
         const btn = e.target.closest('button[data-action="reset"]');
         if (btn) resetFilters();
+      });
+
+      window.addEventListener('hashchange', () => {
+        const target = (location.hash === '#channels') ? 'channels' : 'schedule';
+        if (target !== activeView) {
+          activeView = target;
+          render();
+        }
       });
 
       document.addEventListener('visibilitychange', () => {
@@ -1335,12 +1913,12 @@
     (function init() {
       setupEventListeners();
 
-      let hasLocalCache = false; // [T-1]
+      let hasLocalCache = false;
       try {
-        const cachedStr = localStorage.getItem(LOCAL_STORAGE_KEY);
+        const cachedStr = localStorage.getItem(LOCAL_STORAGE_KEY) || localStorage.getItem('yt_live_schedule_cache_v6');
         if (cachedStr) {
           const wrapper = JSON.parse(cachedStr);
-          if (wrapper && wrapper.schemaVersion === 6 && wrapper.payload && Array.isArray(wrapper.payload.lives)) {
+          if (wrapper && wrapper.payload && Array.isArray(wrapper.payload.lives)) {
             savedAtMs = Number(wrapper.savedAtMs) || 0;
             render(wrapper.payload);
             hasLocalCache = true;
