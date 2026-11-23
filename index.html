@@ -520,6 +520,15 @@
       gap: 7px;
     }
 
+    .main-tag-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--tag-main-accent);
+      flex-shrink: 0;
+    }
+
     .live-dot-pulse {
       display: inline-block;
       width: 8px;
@@ -900,9 +909,18 @@
       text-overflow: ellipsis;
     }
 
-    .ch-subs {
-      font-size: 0.74rem;
+    .ch-meta-line {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 4px 8px;
+      font-size: 0.73rem;
       color: var(--text-sub);
+    }
+
+    .ch-latest-date {
+      color: #8e8e95;
+      font-size: 0.7rem;
     }
 
     .ch-tags {
@@ -983,9 +1001,9 @@
         </div>
 
         <div class="sort-toggle" id="channel-sort-toggle" style="display:none;">
-          <button class="sort-btn active" id="ch-sort-order" type="button" data-ch-sort="order">登録順</button>
+          <button class="sort-btn active" id="ch-sort-tag" type="button" data-ch-sort="tag">タグ別</button>
           <button class="sort-btn" id="ch-sort-subs" type="button" data-ch-sort="subs">登録者数順</button>
-          <button class="sort-btn" id="ch-sort-name" type="button" data-ch-sort="name">名前順</button>
+          <button class="sort-btn" id="ch-sort-latest" type="button" data-ch-sort="latest">動画更新日順</button>
         </div>
       </div>
     </div>
@@ -1016,7 +1034,7 @@
 
   <script>
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzKEjdp1EPCZ_8jCAvaGfTdOA9kCVBnau0XdnR9-uuj7kYlAbqp-jRQrAouMQnUSqPs/exec';
-    const LOCAL_STORAGE_KEY = 'yt_live_schedule_cache_v8';
+    const LOCAL_STORAGE_KEY = 'yt_live_schedule_cache_v9';
     const FETCH_TIMEOUT_MS = 15000;
     const AUTO_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
     const STALE_THRESHOLD_MS = 30 * 60 * 1000;
@@ -1070,7 +1088,7 @@
     let selectedDirMainTag = 'ALL';
     let selectedDirSubTag = 'ALL';
     let dirSearchQuery = '';
-    let dirSortMode = 'order';
+    let dirSortMode = 'tag';
 
     // 折りたたみ展開状態
     let expandMainTags = false;
@@ -1139,7 +1157,7 @@
       return order.map(name => ({
         name: name,
         group: 'sub',
-        count: 2,
+        count: 4,
         visibility: 'auto',
         isFolded: false
       }));
@@ -1233,11 +1251,12 @@
       btn.setAttribute('aria-expanded', String(isFilterOpen));
     }
 
+    // 選択済みタグを再クリックした場合は 'ALL' に戻すトグル挙動
     function selectMainTag(tag) {
       if (activeView === 'channels') {
-        selectedDirMainTag = tag;
+        selectedDirMainTag = (selectedDirMainTag === tag) ? 'ALL' : tag;
       } else {
-        selectedMainTag = tag;
+        selectedMainTag = (selectedMainTag === tag) ? 'ALL' : tag;
         selectedChannel = 'ALL';
       }
       render();
@@ -1245,16 +1264,16 @@
 
     function selectSubTag(tag) {
       if (activeView === 'channels') {
-        selectedDirSubTag = tag;
+        selectedDirSubTag = (selectedDirSubTag === tag) ? 'ALL' : tag;
       } else {
-        selectedSubTag = tag;
+        selectedSubTag = (selectedSubTag === tag) ? 'ALL' : tag;
         selectedChannel = 'ALL';
       }
       render();
     }
 
     function selectChannel(channel) {
-      selectedChannel = channel;
+      selectedChannel = (selectedChannel === channel) ? 'ALL' : channel;
       render();
     }
 
@@ -1284,9 +1303,9 @@
 
     function setDirSortMode(mode) {
       dirSortMode = mode;
-      document.getElementById('ch-sort-order').classList.toggle('active', mode === 'order');
+      document.getElementById('ch-sort-tag').classList.toggle('active', mode === 'tag');
       document.getElementById('ch-sort-subs').classList.toggle('active', mode === 'subs');
-      document.getElementById('ch-sort-name').classList.toggle('active', mode === 'name');
+      document.getElementById('ch-sort-latest').classList.toggle('active', mode === 'latest');
       render();
     }
 
@@ -1429,6 +1448,9 @@
 
       const liveBadgeHtml = isLiveNow ? `<span class="ch-live-pill">LIVE</span>` : '';
       const subText = formatSubscriberCount(ch.subscriberCount);
+      const latestHtml = ch.latestVideoDate
+        ? `<span class="ch-latest-date">最新投稿: ${escapeHtml(ch.latestVideoDate)}</span>`
+        : '';
       const miniTagsInner = renderMiniTagsHtml(ch.tags);
       const tagsHtml = miniTagsInner ? `<div class="ch-tags">${miniTagsInner}</div>` : '';
 
@@ -1439,7 +1461,10 @@
         </div>
         <div class="ch-info">
           <div class="ch-title" title="${escapeHtml(ch.channelTitle)}">${escapeHtml(ch.channelTitle)}</div>
-          <div class="ch-subs">${escapeHtml(subText)}</div>
+          <div class="ch-meta-line">
+            <span>${escapeHtml(subText)}</span>
+            ${latestHtml}
+          </div>
           ${tagsHtml}
         </div>
       `;
@@ -1447,10 +1472,22 @@
       return card;
     }
 
-    function buildAvailableTagLists(items) {
-      const presentSet = new Set();
+    /**
+     * メインタグリストは全アイテムから、サブタグリストは「選択中メインタグを含むアイテム」から動的に構築
+     */
+    function buildAvailableTagLists(items, activeMainTag) {
+      const allPresentSet = new Set();
       items.forEach(item => {
-        parseTags(item.tags).forEach(t => presentSet.add(t));
+        parseTags(item.tags).forEach(t => allPresentSet.add(t));
+      });
+
+      const subScopeItems = (activeMainTag && activeMainTag !== 'ALL')
+        ? items.filter(item => parseTags(item.tags).includes(activeMainTag))
+        : items;
+
+      const subPresentSet = new Set();
+      subScopeItems.forEach(item => {
+        parseTags(item.tags).forEach(t => subPresentSet.add(t));
       });
 
       const meta = getNormalizedTagMeta();
@@ -1459,18 +1496,20 @@
       const subList = [];
 
       meta.forEach(m => {
-        if (!presentSet.has(m.name)) return;
-        if (m.group === 'main') mainList.push(m);
-        else subList.push(m);
+        if (m.group === 'main') {
+          if (allPresentSet.has(m.name)) mainList.push(m);
+        } else {
+          if (subPresentSet.has(m.name)) subList.push(m);
+        }
       });
 
-      presentSet.forEach(t => {
+      subPresentSet.forEach(t => {
         if (!metaMap.has(t)) {
           subList.push({ name: t, group: 'sub', count: 1, visibility: 'auto', isFolded: false });
         }
       });
 
-      return { mainList, subList, presentSet };
+      return { mainList, subList, allPresentSet, subPresentSet };
     }
 
     function renderScheduleFilterControls(allLives) {
@@ -1492,12 +1531,13 @@
       toggleBtn.style.display = '';
       channelRow.style.display = 'flex';
 
-      const { mainList, subList, presentSet } = buildAvailableTagLists(allLives);
+      let { mainList, subList, allPresentSet, subPresentSet } = buildAvailableTagLists(allLives, selectedMainTag);
 
-      if (selectedMainTag !== 'ALL' && !presentSet.has(selectedMainTag)) {
+      if (selectedMainTag !== 'ALL' && !allPresentSet.has(selectedMainTag)) {
         selectedMainTag = 'ALL';
+        ({ mainList, subList, subPresentSet } = buildAvailableTagLists(allLives, 'ALL'));
       }
-      if (selectedSubTag !== 'ALL' && !presentSet.has(selectedSubTag)) {
+      if (selectedSubTag !== 'ALL' && !subPresentSet.has(selectedSubTag)) {
         selectedSubTag = 'ALL';
       }
 
@@ -1578,12 +1618,13 @@
       mobileTitle.textContent = '表示するタグを選択';
       channelRow.style.display = 'none';
 
-      const { mainList, subList, presentSet } = buildAvailableTagLists(allChannels);
+      let { mainList, subList, allPresentSet, subPresentSet } = buildAvailableTagLists(allChannels, selectedDirMainTag);
 
-      if (selectedDirMainTag !== 'ALL' && !presentSet.has(selectedDirMainTag)) {
+      if (selectedDirMainTag !== 'ALL' && !allPresentSet.has(selectedDirMainTag)) {
         selectedDirMainTag = 'ALL';
+        ({ mainList, subList, subPresentSet } = buildAvailableTagLists(allChannels, 'ALL'));
       }
-      if (selectedDirSubTag !== 'ALL' && !presentSet.has(selectedDirSubTag)) {
+      if (selectedDirSubTag !== 'ALL' && !subPresentSet.has(selectedDirSubTag)) {
         selectedDirSubTag = 'ALL';
       }
 
@@ -1797,6 +1838,13 @@
       }
     }
 
+    function compareBySubs(a, b) {
+      const sa = (typeof a.subscriberCount === 'number') ? a.subscriberCount : -1;
+      const sb = (typeof b.subscriberCount === 'number') ? b.subscriberCount : -1;
+      if (sb !== sa) return sb - sa;
+      return (a.sortOrder || 9999) - (b.sortOrder || 9999);
+    }
+
     function renderChannelsView(allChannels, allLives) {
       renderChannelFilterControls(allChannels);
 
@@ -1824,26 +1872,13 @@
         return true;
       });
 
-      const sortedChannels = [...filteredChannels].sort((a, b) => {
-        if (dirSortMode === 'subs') {
-          const sa = (typeof a.subscriberCount === 'number') ? a.subscriberCount : -1;
-          const sb = (typeof b.subscriberCount === 'number') ? b.subscriberCount : -1;
-          if (sb !== sa) return sb - sa;
-          return (a.sortOrder || 9999) - (b.sortOrder || 9999);
-        }
-        if (dirSortMode === 'name') {
-          return String(a.channelTitle || '').localeCompare(String(b.channelTitle || ''), 'ja');
-        }
-        return (a.sortOrder || 9999) - (b.sortOrder || 9999);
-      });
-
       const isFiltered = (selectedDirMainTag !== 'ALL' || selectedDirSubTag !== 'ALL' || q.length > 0);
       const resetBtnHtml = isFiltered
         ? `<button class="reset-link" type="button" data-action="reset">解除</button>`
         : '';
 
       const countLabel = isFiltered
-        ? `表示中: ${sortedChannels.length} / ${allChannels.length}チャンネル`
+        ? `表示中: ${filteredChannels.length} / ${allChannels.length}チャンネル`
         : `登録チャンネル: ${allChannels.length}件`;
 
       document.getElementById('count-bar').innerHTML = `
@@ -1854,7 +1889,7 @@
       const contentEl = document.getElementById('content');
       contentEl.innerHTML = '';
 
-      if (sortedChannels.length === 0) {
+      if (filteredChannels.length === 0) {
         contentEl.innerHTML = `
           <div class="empty-state">
             ${allChannels.length === 0
@@ -1864,6 +1899,88 @@
         `;
         return;
       }
+
+      // 1. タグ別ビュー（メインタグのみでセクション分け）
+      if (dirSortMode === 'tag') {
+        const mainMetaList = getNormalizedTagMeta().filter(m => m.group === 'main');
+        const mainTagNames = mainMetaList.map(m => m.name);
+        const mainTagSet = new Set(mainTagNames);
+
+        const targetMainTags = (selectedDirMainTag !== 'ALL')
+          ? [selectedDirMainTag]
+          : mainTagNames;
+
+        targetMainTags.forEach(tagName => {
+          const matched = filteredChannels
+            .filter(ch => parseTags(ch.tags).includes(tagName))
+            .sort(compareBySubs);
+          if (matched.length === 0) return;
+
+          const tagSection = document.createElement('section');
+          tagSection.className = 'section-box';
+          tagSection.innerHTML = `
+            <div class="section-header">
+              <div class="section-title">
+                <span class="main-tag-dot"></span>
+                <span>${escapeHtml(tagName)}</span>
+              </div>
+              <span class="section-count">${matched.length}件</span>
+            </div>
+          `;
+
+          const grid = document.createElement('div');
+          grid.className = 'ch-grid';
+          matched.forEach(ch => {
+            const isLiveNow = liveChannelIds.has(String(ch.channelId || '').trim());
+            grid.appendChild(createChannelCardElement(ch, isLiveNow));
+          });
+
+          tagSection.appendChild(grid);
+          contentEl.appendChild(tagSection);
+        });
+
+        // メインタグを持たないチャンネルの受け皿
+        if (selectedDirMainTag === 'ALL') {
+          const uncategorized = filteredChannels
+            .filter(ch => !parseTags(ch.tags).some(t => mainTagSet.has(t)))
+            .sort(compareBySubs);
+
+          if (uncategorized.length > 0) {
+            const otherSection = document.createElement('section');
+            otherSection.className = 'section-box';
+            otherSection.innerHTML = `
+              <div class="section-header">
+                <div class="section-title">
+                  <span>その他（メインタグ未設定）</span>
+                </div>
+                <span class="section-count">${uncategorized.length}件</span>
+              </div>
+            `;
+
+            const grid = document.createElement('div');
+            grid.className = 'ch-grid';
+            uncategorized.forEach(ch => {
+              const isLiveNow = liveChannelIds.has(String(ch.channelId || '').trim());
+              grid.appendChild(createChannelCardElement(ch, isLiveNow));
+            });
+
+            otherSection.appendChild(grid);
+            contentEl.appendChild(otherSection);
+          }
+        }
+        return;
+      }
+
+      // 2. 登録者数順 / 3. 動画更新日順
+      const sortedChannels = [...filteredChannels].sort((a, b) => {
+        if (dirSortMode === 'latest') {
+          const la = (typeof a.latestVideoMs === 'number' && a.latestVideoMs > 0) ? a.latestVideoMs : -1;
+          const lb = (typeof b.latestVideoMs === 'number' && b.latestVideoMs > 0) ? b.latestVideoMs : -1;
+          if (lb !== la) return lb - la;
+          return compareBySubs(a, b);
+        }
+        return compareBySubs(a, b);
+      });
 
       const section = document.createElement('section');
       section.className = 'section-box ch-section';
@@ -1965,7 +2082,7 @@
 
         try {
           const cacheWrapper = {
-            schemaVersion: 8,
+            schemaVersion: 9,
             savedAtMs: now,
             payload: data
           };
@@ -2020,16 +2137,16 @@
         setSortMode('channel');
       });
 
-      document.getElementById('ch-sort-order').addEventListener('click', () => {
-        setDirSortMode('order');
+      document.getElementById('ch-sort-tag').addEventListener('click', () => {
+        setDirSortMode('tag');
       });
 
       document.getElementById('ch-sort-subs').addEventListener('click', () => {
         setDirSortMode('subs');
       });
 
-      document.getElementById('ch-sort-name').addEventListener('click', () => {
-        setDirSortMode('name');
+      document.getElementById('ch-sort-latest').addEventListener('click', () => {
+        setDirSortMode('latest');
       });
 
       const searchInput = document.getElementById('ch-search-input');
@@ -2098,7 +2215,7 @@
 
       let hasLocalCache = false;
       try {
-        const cachedStr = localStorage.getItem(LOCAL_STORAGE_KEY) || localStorage.getItem('yt_live_schedule_cache_v7');
+        const cachedStr = localStorage.getItem(LOCAL_STORAGE_KEY) || localStorage.getItem('yt_live_schedule_cache_v8');
         if (cachedStr) {
           const wrapper = JSON.parse(cachedStr);
           if (wrapper && wrapper.payload && Array.isArray(wrapper.payload.lives)) {
