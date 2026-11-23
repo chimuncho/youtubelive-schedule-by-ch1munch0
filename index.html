@@ -1838,11 +1838,15 @@
       }
     }
 
+    function compareByOrder(a, b) {
+      return (a.sortOrder || 9999) - (b.sortOrder || 9999);
+    }
+
     function compareBySubs(a, b) {
       const sa = (typeof a.subscriberCount === 'number') ? a.subscriberCount : -1;
       const sb = (typeof b.subscriberCount === 'number') ? b.subscriberCount : -1;
       if (sb !== sa) return sb - sa;
-      return (a.sortOrder || 9999) - (b.sortOrder || 9999);
+      return compareByOrder(a, b);
     }
 
     function renderChannelsView(allChannels, allLives) {
@@ -1900,7 +1904,7 @@
         return;
       }
 
-      // 1. タグ別ビュー（メインタグのみでセクション分け）
+      // 1. タグ別ビュー（メインタグのみでセクション分け・枠内はチャンネルディレクトリ登録順）
       if (dirSortMode === 'tag') {
         const mainMetaList = getNormalizedTagMeta().filter(m => m.group === 'main');
         const mainTagNames = mainMetaList.map(m => m.name);
@@ -1913,7 +1917,7 @@
         targetMainTags.forEach(tagName => {
           const matched = filteredChannels
             .filter(ch => parseTags(ch.tags).includes(tagName))
-            .sort(compareBySubs);
+            .sort(compareByOrder);
           if (matched.length === 0) return;
 
           const tagSection = document.createElement('section');
@@ -1943,7 +1947,7 @@
         if (selectedDirMainTag === 'ALL') {
           const uncategorized = filteredChannels
             .filter(ch => !parseTags(ch.tags).some(t => mainTagSet.has(t)))
-            .sort(compareBySubs);
+            .sort(compareByOrder);
 
           if (uncategorized.length > 0) {
             const otherSection = document.createElement('section');
