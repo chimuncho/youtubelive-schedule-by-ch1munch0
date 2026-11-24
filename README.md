@@ -1,3 +1,4 @@
+[readme.md](https://github.com/user-attachments/files/35359996/readme.md)
 # 推しスケ！ (Oshi-Suke!)
 
 **複数の推し配信者（10〜30チャンネル規模）のライブ配信予定・配信中枠・メンバー限定枠・ゲスト出演枠、および推しチャンネルディレクトリを一元管理する個人開発Webアプリケーション**
