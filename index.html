@@ -20,6 +20,7 @@
       --live-glow: rgba(255, 0, 51, 0.28);
       --upcoming-blue: #3ea6ff;
       --member-green: #2ba640;
+      --member-glow: rgba(43, 166, 64, 0.28);
       --tag-main-accent: #a78bfa;
       --tag-sub-accent: #38bdf8;
       --warn-amber: #fbbf24;
@@ -607,7 +608,8 @@
     }
 
     .card.is-member:not(.is-live) {
-      border-color: rgba(43, 166, 64, 0.55);
+      border: 2px solid var(--member-green);
+      box-shadow: 0 0 10px var(--member-glow);
     }
 
     .card.is-live {
