@@ -20,7 +20,6 @@
       --live-glow: rgba(255, 0, 51, 0.28);
       --upcoming-blue: #3ea6ff;
       --member-green: #2ba640;
-      --member-glow: rgba(43, 166, 64, 0.28);
       --tag-main-accent: #a78bfa;
       --tag-sub-accent: #38bdf8;
       --warn-amber: #fbbf24;
@@ -54,11 +53,15 @@
       outline-offset: 2px;
     }
 
-    header {
+    /* ヘッダー＋ツールバーをまとめて画面上部に固定 */
+    .sticky-chrome {
       position: sticky;
       top: 0;
       z-index: 100;
       background-color: var(--header-bg);
+    }
+
+    header {
       border-bottom: 1px solid var(--border-subtle);
       padding: 10px 16px;
     }
@@ -201,10 +204,17 @@
       cursor: wait;
     }
 
-    main {
+    /* 固定ツールバー行（件数・絞り込みプルダウン・検索・ソート） */
+    .toolbar-bar {
+      background-color: var(--header-bg);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 8px 16px;
+    }
+
+    .toolbar-inner {
       max-width: 1440px;
-      margin: 12px auto 0;
-      padding: 0 14px;
+      margin: 0 auto;
+      position: relative;
     }
 
     .status-toolbar {
@@ -213,7 +223,6 @@
       align-items: center;
       flex-wrap: wrap;
       gap: 8px;
-      margin-bottom: 12px;
     }
 
     .toolbar-left {
@@ -287,26 +296,32 @@
       display: block;
     }
 
+    /* 全画面幅で表示する絞り込みプルダウンボタン */
     .filter-toggle-btn {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-      background-color: var(--section-bg);
+      gap: 6px;
+      background-color: var(--card-bg);
       color: var(--text-main);
       border: 1px solid var(--border-subtle);
       border-radius: 7px;
       padding: 4px 10px;
       font-size: 0.75rem;
+      font-weight: 600;
       cursor: pointer;
-      max-width: 185px;
+      max-width: 240px;
       transition: all 0.15s;
+    }
+
+    .filter-toggle-btn:hover {
+      background-color: var(--card-hover);
+      border-color: #3f3f46;
     }
 
     .filter-toggle-btn.has-filter {
       background-color: rgba(62, 166, 255, 0.16);
       border-color: rgba(62, 166, 255, 0.5);
       color: var(--upcoming-blue);
-      font-weight: 600;
     }
 
     .filter-toggle-text {
@@ -323,12 +338,6 @@
 
     .filter-toggle-btn.is-open .filter-chevron {
       transform: rotate(180deg);
-    }
-
-    @media (min-width: 640px) {
-      .filter-toggle-btn {
-        display: none;
-      }
     }
 
     .reset-link {
@@ -365,31 +374,43 @@
       font-weight: 600;
     }
 
+    /* プルダウン展開時の絞り込みパネル（全画面幅共通・フローティング表示） */
     .filter-panel {
-      background-color: var(--section-bg);
-      border: 1px solid var(--border-subtle);
+      position: absolute;
+      top: calc(100% + 10px);
+      left: 0;
+      right: 0;
+      z-index: 120;
+      background-color: #19191d;
+      border: 1px solid #38383f;
       border-radius: 12px;
-      padding: 10px 12px;
-      margin-bottom: 12px;
+      padding: 12px 14px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 9px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.72);
+      max-height: calc(100vh - 125px);
+      overflow-y: auto;
     }
 
-    @media (max-width: 639px) {
-      .filter-panel.is-collapsed {
-        display: none !important;
-      }
+    .filter-panel.is-collapsed {
+      display: none !important;
     }
 
-    .filter-panel-mobile-header {
+    .filter-panel-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding-bottom: 6px;
+      padding-bottom: 7px;
       border-bottom: 1px solid var(--border-subtle);
-      font-size: 0.74rem;
+      font-size: 0.75rem;
       color: var(--text-sub);
+    }
+
+    .filter-panel-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
     .filter-close-btn {
@@ -397,15 +418,14 @@
       color: var(--text-main);
       border: 1px solid var(--border-subtle);
       border-radius: 5px;
-      padding: 2px 8px;
+      padding: 2px 9px;
       font-size: 0.72rem;
       cursor: pointer;
+      transition: background-color 0.15s;
     }
 
-    @media (min-width: 640px) {
-      .filter-panel-mobile-header {
-        display: none;
-      }
+    .filter-close-btn:hover {
+      background-color: var(--card-hover);
     }
 
     .filter-row {
@@ -480,6 +500,12 @@
       border-color: #52525b;
       color: var(--text-sub);
       font-size: 0.71rem;
+    }
+
+    main {
+      max-width: 1440px;
+      margin: 14px auto 0;
+      padding: 0 14px;
     }
 
     .section-box {
@@ -608,8 +634,7 @@
     }
 
     .card.is-member:not(.is-live) {
-      border: 2px solid var(--member-green);
-      box-shadow: 0 0 10px var(--member-glow);
+      border-color: rgba(43, 166, 64, 0.55);
     }
 
     .card.is-live {
@@ -955,80 +980,87 @@
 </head>
 <body>
 
-  <header>
-    <div class="header-inner">
-      <div class="header-left">
-        <div class="header-title">
-          <span class="dot"></span>
-          <span>推しスケ！</span>
+  <div class="sticky-chrome">
+    <header>
+      <div class="header-inner">
+        <div class="header-left">
+          <div class="header-title">
+            <span class="dot"></span>
+            <span>推しスケ！</span>
+          </div>
+          <nav class="view-tabs" aria-label="表示切り替え">
+            <button class="view-tab-btn active" id="tab-schedule" type="button" data-view="schedule">
+              <span>配信スケジュール</span>
+              <span class="tab-badge" id="tab-badge-schedule">0</span>
+            </button>
+            <button class="view-tab-btn" id="tab-channels" type="button" data-view="channels">
+              <span>チャンネル一覧</span>
+              <span class="tab-badge" id="tab-badge-channels">0</span>
+            </button>
+          </nav>
         </div>
-        <nav class="view-tabs" aria-label="表示切り替え">
-          <button class="view-tab-btn active" id="tab-schedule" type="button" data-view="schedule">
-            <span>配信スケジュール</span>
-            <span class="tab-badge" id="tab-badge-schedule">0</span>
-          </button>
-          <button class="view-tab-btn" id="tab-channels" type="button" data-view="channels">
-            <span>チャンネル一覧</span>
-            <span class="tab-badge" id="tab-badge-channels">0</span>
-          </button>
-        </nav>
+        <div class="meta-info">
+          <span id="status-badges"></span>
+          <span id="last-updated">更新: --/-- --:--</span>
+          <button id="reload-btn" class="reload-btn" type="button">再読込</button>
+        </div>
       </div>
-      <div class="meta-info">
-        <span id="status-badges"></span>
-        <span id="last-updated">更新: --/-- --:--</span>
-        <button id="reload-btn" class="reload-btn" type="button">再読込</button>
+    </header>
+
+    <div class="toolbar-bar">
+      <div class="toolbar-inner">
+        <div class="status-toolbar">
+          <div class="toolbar-left">
+            <div class="count-bar" id="count-bar"></div>
+            <button class="filter-toggle-btn" id="filter-toggle-btn" type="button" aria-expanded="false" aria-controls="filter-panel" style="display:none;">
+              <span class="filter-toggle-text" id="filter-toggle-text">絞り込み</span>
+              <span class="filter-chevron">▼</span>
+            </button>
+          </div>
+          <div class="toolbar-right">
+            <div class="search-input-wrap" id="ch-search-wrap" style="display:none;">
+              <input class="search-input" id="ch-search-input" type="search" placeholder="チャンネル名・タグ検索" aria-label="チャンネル検索">
+              <button class="search-clear-btn" id="ch-search-clear" type="button" aria-label="検索をクリア">×</button>
+            </div>
+
+            <div class="sort-toggle" id="schedule-sort-toggle">
+              <button class="sort-btn active" id="sort-time" type="button" data-sort="time">開始時間順</button>
+              <button class="sort-btn" id="sort-channel" type="button" data-sort="channel">チャンネル別</button>
+            </div>
+
+            <div class="sort-toggle" id="channel-sort-toggle" style="display:none;">
+              <button class="sort-btn active" id="ch-sort-tag" type="button" data-ch-sort="tag">タグ別</button>
+              <button class="sort-btn" id="ch-sort-subs" type="button" data-ch-sort="subs">登録者数順</button>
+              <button class="sort-btn" id="ch-sort-latest" type="button" data-ch-sort="latest">動画更新日順</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-panel is-collapsed" id="filter-panel" style="display:none;">
+          <div class="filter-panel-header">
+            <span id="filter-panel-title">表示するタグ・チャンネルを選択</span>
+            <div class="filter-panel-actions">
+              <button class="filter-close-btn" id="filter-close-btn" type="button">閉じる</button>
+            </div>
+          </div>
+          <div class="filter-row" id="main-tag-filter-row" style="display:none;">
+            <div class="filter-label is-main-label">メイン</div>
+            <div class="chip-group" id="main-tag-chips"></div>
+          </div>
+          <div class="filter-row" id="sub-tag-filter-row" style="display:none;">
+            <div class="filter-label is-sub-label">サブ</div>
+            <div class="chip-group" id="sub-tag-chips"></div>
+          </div>
+          <div class="filter-row" id="channel-filter-row">
+            <div class="filter-label">チャンネル</div>
+            <div class="chip-group" id="channel-chips"></div>
+          </div>
+        </div>
       </div>
     </div>
-  </header>
+  </div>
 
   <main>
-    <div class="status-toolbar">
-      <div class="toolbar-left">
-        <div class="count-bar" id="count-bar"></div>
-      </div>
-      <div class="toolbar-right">
-        <div class="search-input-wrap" id="ch-search-wrap" style="display:none;">
-          <input class="search-input" id="ch-search-input" type="search" placeholder="チャンネル名・タグ検索" aria-label="チャンネル検索">
-          <button class="search-clear-btn" id="ch-search-clear" type="button" aria-label="検索をクリア">×</button>
-        </div>
-
-        <button class="filter-toggle-btn" id="filter-toggle-btn" type="button" aria-expanded="false" style="display:none;">
-          <span class="filter-toggle-text" id="filter-toggle-text">絞り込み</span>
-          <span class="filter-chevron">▼</span>
-        </button>
-
-        <div class="sort-toggle" id="schedule-sort-toggle">
-          <button class="sort-btn active" id="sort-time" type="button" data-sort="time">開始時間順</button>
-          <button class="sort-btn" id="sort-channel" type="button" data-sort="channel">チャンネル別</button>
-        </div>
-
-        <div class="sort-toggle" id="channel-sort-toggle" style="display:none;">
-          <button class="sort-btn active" id="ch-sort-tag" type="button" data-ch-sort="tag">タグ別</button>
-          <button class="sort-btn" id="ch-sort-subs" type="button" data-ch-sort="subs">登録者数順</button>
-          <button class="sort-btn" id="ch-sort-latest" type="button" data-ch-sort="latest">動画更新日順</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="filter-panel is-collapsed" id="filter-panel" style="display:none;">
-      <div class="filter-panel-mobile-header">
-        <span id="filter-panel-mobile-title">表示するタグ・チャンネルを選択</span>
-        <button class="filter-close-btn" id="filter-close-btn" type="button">閉じる</button>
-      </div>
-      <div class="filter-row" id="main-tag-filter-row" style="display:none;">
-        <div class="filter-label is-main-label">メイン</div>
-        <div class="chip-group" id="main-tag-chips"></div>
-      </div>
-      <div class="filter-row" id="sub-tag-filter-row" style="display:none;">
-        <div class="filter-label is-sub-label">サブ</div>
-        <div class="chip-group" id="sub-tag-chips"></div>
-      </div>
-      <div class="filter-row" id="channel-filter-row">
-        <div class="filter-label">チャンネル</div>
-        <div class="chip-group" id="channel-chips"></div>
-      </div>
-    </div>
-
     <div id="content">
       <div class="empty-state">データを読み込み中...</div>
     </div>
@@ -1316,6 +1348,7 @@
       btn.type = 'button';
       btn.className = `chip ${extraClass || ''} ${isActive ? 'active' : ''}`.trim();
       btn.textContent = label;
+      btn.setAttribute('aria-pressed', String(Boolean(isActive)));
       btn.dataset[dataKey] = value;
       return btn;
     }
@@ -1519,9 +1552,9 @@
       const toggleBtn = document.getElementById('filter-toggle-btn');
       const toggleText = document.getElementById('filter-toggle-text');
       const channelRow = document.getElementById('channel-filter-row');
-      const mobileTitle = document.getElementById('filter-panel-mobile-title');
+      const panelTitle = document.getElementById('filter-panel-title');
 
-      mobileTitle.textContent = '表示するタグ・チャンネルを選択';
+      panelTitle.textContent = '表示するタグ・チャンネルを選択';
 
       if (allLives.length === 0) {
         filterPanel.style.display = 'none';
@@ -1530,7 +1563,7 @@
       }
 
       filterPanel.style.display = 'flex';
-      toggleBtn.style.display = '';
+      toggleBtn.style.display = 'inline-flex';
       channelRow.style.display = 'flex';
 
       let { mainList, subList, allPresentSet, subPresentSet } = buildAvailableTagLists(allLives, selectedMainTag);
@@ -1615,9 +1648,9 @@
       const toggleBtn = document.getElementById('filter-toggle-btn');
       const toggleText = document.getElementById('filter-toggle-text');
       const channelRow = document.getElementById('channel-filter-row');
-      const mobileTitle = document.getElementById('filter-panel-mobile-title');
+      const panelTitle = document.getElementById('filter-panel-title');
 
-      mobileTitle.textContent = '表示するタグを選択';
+      panelTitle.textContent = '表示するタグを選択';
       channelRow.style.display = 'none';
 
       let { mainList, subList, allPresentSet, subPresentSet } = buildAvailableTagLists(allChannels, selectedDirMainTag);
@@ -1637,7 +1670,7 @@
       }
 
       filterPanel.style.display = 'flex';
-      toggleBtn.style.display = '';
+      toggleBtn.style.display = 'inline-flex';
 
       populateTagRow(
         document.getElementById('main-tag-filter-row'),
@@ -1670,7 +1703,7 @@
         toggleText.textContent = activeLabels.join(' / ');
       } else {
         toggleBtn.classList.remove('has-filter');
-        toggleText.textContent = 'タグ絞り込み';
+        toggleText.textContent = '絞り込み';
       }
     }
 
@@ -2069,7 +2102,7 @@
       const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
       try {
-        const requestUrl = `${GAS_API_URL}?api=1&t=${Date.now()}`;
+        const requestUrl = `${GAS_API_URL}?t=${Date.now()}`;
         const response = await fetch(requestUrl, { signal: controller.signal });
         if (!response.ok) {
           throw new Error(`HTTPエラー: ${response.status}`);
@@ -2190,6 +2223,23 @@
       document.getElementById('count-bar').addEventListener('click', (e) => {
         const btn = e.target.closest('button[data-action="reset"]');
         if (btn) resetFilters();
+      });
+
+      // パネル外側クリック・Escキーで絞り込みプルダウンを閉じる
+      document.addEventListener('click', (e) => {
+        if (!isFilterOpen) return;
+        if (!document.contains(e.target)) return;
+        const panel = document.getElementById('filter-panel');
+        const toggleBtn = document.getElementById('filter-toggle-btn');
+        if (!panel.contains(e.target) && !toggleBtn.contains(e.target)) {
+          toggleFilterPanel(false);
+        }
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && isFilterOpen) {
+          toggleFilterPanel(false);
+        }
       });
 
       window.addEventListener('hashchange', () => {
