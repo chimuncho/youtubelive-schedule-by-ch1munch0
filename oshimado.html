@@ -2085,16 +2085,18 @@
 
     /* ===== URLパラメータ同期＆共有 ===== */
     function syncUrlState() {
-      const activeIds = slots.map(s => s.videoId).filter(Boolean);
-      const url = new URL(location.href);
-      if (activeIds.length > 0) {
-        url.searchParams.set('v', activeIds.join(','));
-        url.searchParams.set('layout', currentLayout);
-      } else {
-        url.searchParams.delete('v');
-        url.searchParams.delete('layout');
-      }
-      history.replaceState(null, '', url.pathname + url.search);
+      try {
+        const activeIds = slots.map(s => s.videoId).filter(Boolean);
+        const url = new URL(location.href);
+        if (activeIds.length > 0) {
+          url.searchParams.set('v', activeIds.join(','));
+          url.searchParams.set('layout', currentLayout);
+        } else {
+          url.searchParams.delete('v');
+          url.searchParams.delete('layout');
+        }
+        history.replaceState(null, '', url.pathname + url.search);
+      } catch (e) {}
     }
 
     async function copyShareUrl() {
