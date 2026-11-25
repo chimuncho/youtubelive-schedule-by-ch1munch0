@@ -1269,7 +1269,30 @@
     }
 
     /* ===== YouTube本家ページをミニウィンドウで開く（高評価・チャンネル登録用） ===== */
-    let watchPopupRef = null;
+    const pendingPopupRequests = new Map();
+    let popupReqSeq = 0;
+
+    window.addEventListener('message', (event) => {
+      if (event.source !== window) return;
+      const data = event.data;
+      if (!data || data.type !== 'OSHIMADO_OPEN_WATCH_POPUP_RES' || !data.requestId) return;
+
+      const pending = pendingPopupRequests.get(data.requestId);
+      if (!pending) return;
+
+      clearTimeout(pending.timeoutId);
+      pendingPopupRequests.delete(data.requestId);
+
+      if (data.ok) {
+        showToast(
+          data.reused
+            ? `👍 #${pending.slotIdx + 1} をミニウィンドウで切り替えました`
+            : `👍 #${pending.slotIdx + 1} をミニウィンドウで開きました`
+        );
+      } else {
+        pending.fallback();
+      }
+    });
 
     function openSlotWatchPage(slotIdx) {
       const slot = slots[slotIdx];
@@ -1277,20 +1300,7 @@
         showToast('配信がセットされていません');
         return;
       }
-      // ハッシュ(#oshimado_popup)を付与して拡張機能側でミニウィンドウ判定できるようにする
       const watchUrl = `https://www.youtube.com/watch?v=${encodeURIComponent(slot.videoId)}#oshimado_popup`;
-
-      // すでにミニウィンドウが開いていれば同じウィンドウ内でURLを切り替える
-      if (watchPopupRef && !watchPopupRef.closed) {
-        try {
-          watchPopupRef.location.href = watchUrl;
-          watchPopupRef.focus();
-          showToast(`👍 #${slotIdx + 1} をミニウィンドウで切り替えました`);
-          return;
-        } catch (e) {
-          watchPopupRef = null;
-        }
-      }
 
       const width = 640;
       const height = 780;
@@ -1298,19 +1308,46 @@
       const screenTop = window.screenTop !== undefined ? window.screenTop : window.screenY;
       const availWidth = window.screen.availWidth || window.innerWidth;
       const availHeight = window.screen.availHeight || window.innerHeight;
-      const left = Math.max(screenLeft, screenLeft + availWidth - width - 24);
-      const top = Math.max(screenTop, screenTop + availHeight - height - 24);
+      const left = Math.round(Math.max(screenLeft, screenLeft + availWidth - width - 24));
+      const top = Math.round(Math.max(screenTop, screenTop + availHeight - height - 24));
 
-      const features = `popup=yes,width=${width},height=${height},left=${Math.round(left)},top=${Math.round(top)},resizable=yes,scrollbars=yes`;
-      const popup = window.open(watchUrl, 'oshimado_watch_popup', features);
-      if (popup) {
-        watchPopupRef = popup;
-        popup.focus();
-        showToast(`👍 #${slotIdx + 1} をミニウィンドウで開きました`);
-      } else {
-        window.open(watchUrl, '_blank', 'noopener,noreferrer');
-        showToast(`👍 #${slotIdx + 1} のYouTubeページを開きました`);
-      }
+      const fallbackOpen = () => {
+        const features = `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`;
+        const popup = window.open(watchUrl, 'oshimado_watch_popup', features);
+        if (popup) {
+          popup.focus();
+          showToast(`👍 #${slotIdx + 1} をミニウィンドウで開きました`);
+        } else {
+          window.open(watchUrl, '_blank', 'noopener,noreferrer');
+          showToast(`👍 #${slotIdx + 1} のYouTubeページを開きました`);
+        }
+      };
+
+      const requestId = `popup_${Date.now()}_${++popupReqSeq}`;
+      const timeoutId = setTimeout(() => {
+        if (!pendingPopupRequests.has(requestId)) return;
+        pendingPopupRequests.delete(requestId);
+        fallbackOpen();
+      }, 250);
+
+      pendingPopupRequests.set(requestId, {
+        slotIdx,
+        timeoutId,
+        fallback: fallbackOpen
+      });
+
+      window.postMessage(
+        {
+          type: 'OSHIMADO_OPEN_WATCH_POPUP_REQ',
+          requestId,
+          url: watchUrl,
+          width,
+          height,
+          left,
+          top
+        },
+        '*'
+      );
     }
 
     /* ===== スクリーンショット連携（Chrome拡張機能） ===== */
