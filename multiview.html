@@ -645,7 +645,17 @@
       color: #000;
     }
 
-    .slot-card.is-empty .shot-btn {
+    .mini-btn.like-btn {
+      color: #e4e4e7;
+    }
+
+    .mini-btn.like-btn:hover {
+      border-color: rgba(62, 166, 255, 0.55);
+      color: var(--upcoming-blue);
+    }
+
+    .slot-card.is-empty .shot-btn,
+    .slot-card.is-empty .like-btn {
       display: none;
     }
 
@@ -994,6 +1004,7 @@
             </div>
             <div class="slot-controls">
               <button class="mini-btn shot-btn" type="button" data-action="screenshot" data-slot="0" title="この配信枠を元の解像度でスクショ保存">📷</button>
+              <button class="mini-btn like-btn" type="button" data-action="open-watch" data-slot="0" title="YouTube本家ページを開いて高評価・チャンネル登録する">👍</button>
               <button class="mini-btn solo-btn" type="button" data-action="solo" data-slot="0" title="この枠のみ音声ON (キー: 1)">🔊 ソロ</button>
               <button class="mini-btn mute-btn" type="button" data-action="mute" data-slot="0" title="ミュート切替">🔇</button>
               <input class="vol-slider" type="range" min="0" max="100" value="80" data-slot="0" aria-label="#1 音量">
@@ -1018,6 +1029,7 @@
             </div>
             <div class="slot-controls">
               <button class="mini-btn shot-btn" type="button" data-action="screenshot" data-slot="1" title="この配信枠を元の解像度でスクショ保存">📷</button>
+              <button class="mini-btn like-btn" type="button" data-action="open-watch" data-slot="1" title="YouTube本家ページを開いて高評価・チャンネル登録する">👍</button>
               <button class="mini-btn solo-btn" type="button" data-action="solo" data-slot="1" title="この枠のみ音声ON (キー: 2)">🔊 ソロ</button>
               <button class="mini-btn mute-btn" type="button" data-action="mute" data-slot="1" title="ミュート切替">🔇</button>
               <input class="vol-slider" type="range" min="0" max="100" value="80" data-slot="1" aria-label="#2 音量">
@@ -1042,6 +1054,7 @@
             </div>
             <div class="slot-controls">
               <button class="mini-btn shot-btn" type="button" data-action="screenshot" data-slot="2" title="この配信枠を元の解像度でスクショ保存">📷</button>
+              <button class="mini-btn like-btn" type="button" data-action="open-watch" data-slot="2" title="YouTube本家ページを開いて高評価・チャンネル登録する">👍</button>
               <button class="mini-btn solo-btn" type="button" data-action="solo" data-slot="2" title="この枠のみ音声ON (キー: 3)">🔊 ソロ</button>
               <button class="mini-btn mute-btn" type="button" data-action="mute" data-slot="2" title="ミュート切替">🔇</button>
               <input class="vol-slider" type="range" min="0" max="100" value="80" data-slot="2" aria-label="#3 音量">
@@ -1066,6 +1079,7 @@
             </div>
             <div class="slot-controls">
               <button class="mini-btn shot-btn" type="button" data-action="screenshot" data-slot="3" title="この配信枠を元の解像度でスクショ保存">📷</button>
+              <button class="mini-btn like-btn" type="button" data-action="open-watch" data-slot="3" title="YouTube本家ページを開いて高評価・チャンネル登録する">👍</button>
               <button class="mini-btn solo-btn" type="button" data-action="solo" data-slot="3" title="この枠のみ音声ON (キー: 4)">🔊 ソロ</button>
               <button class="mini-btn mute-btn" type="button" data-action="mute" data-slot="3" title="ミュート切替">🔇</button>
               <input class="vol-slider" type="range" min="0" max="100" value="80" data-slot="3" aria-label="#4 音量">
@@ -1090,6 +1104,7 @@
             </div>
             <div class="slot-controls">
               <button class="mini-btn shot-btn" type="button" data-action="screenshot" data-slot="4" title="この配信枠を元の解像度でスクショ保存">📷</button>
+              <button class="mini-btn like-btn" type="button" data-action="open-watch" data-slot="4" title="YouTube本家ページを開いて高評価・チャンネル登録する">👍</button>
               <button class="mini-btn solo-btn" type="button" data-action="solo" data-slot="4" title="この枠のみ音声ON (キー: 5)">🔊 ソロ</button>
               <button class="mini-btn mute-btn" type="button" data-action="mute" data-slot="4" title="ミュート切替">🔇</button>
               <input class="vol-slider" type="range" min="0" max="100" value="80" data-slot="4" aria-label="#5 音量">
@@ -1114,6 +1129,7 @@
             </div>
             <div class="slot-controls">
               <button class="mini-btn shot-btn" type="button" data-action="screenshot" data-slot="5" title="この配信枠を元の解像度でスクショ保存">📷</button>
+              <button class="mini-btn like-btn" type="button" data-action="open-watch" data-slot="5" title="YouTube本家ページを開いて高評価・チャンネル登録する">👍</button>
               <button class="mini-btn solo-btn" type="button" data-action="solo" data-slot="5" title="この枠のみ音声ON (キー: 6)">🔊 ソロ</button>
               <button class="mini-btn mute-btn" type="button" data-action="mute" data-slot="5" title="ミュート切替">🔇</button>
               <input class="vol-slider" type="range" min="0" max="100" value="80" data-slot="5" aria-label="#6 音量">
@@ -1250,6 +1266,18 @@
       el.classList.add('is-visible');
       clearTimeout(toastTimer);
       toastTimer = setTimeout(() => el.classList.remove('is-visible'), 2400);
+    }
+
+    /* ===== YouTube本家ページを開く（高評価・チャンネル登録用） ===== */
+    function openSlotWatchPage(slotIdx) {
+      const slot = slots[slotIdx];
+      if (!slot || !slot.videoId) {
+        showToast('配信がセットされていません');
+        return;
+      }
+      const watchUrl = `https://www.youtube.com/watch?v=${encodeURIComponent(slot.videoId)}`;
+      window.open(watchUrl, '_blank', 'noopener,noreferrer');
+      showToast(`👍 #${slotIdx + 1} のYouTubeページを開きました`);
     }
 
     /* ===== スクリーンショット連携（Chrome拡張機能） ===== */
@@ -2093,6 +2121,7 @@
         const slotIdx = Number(btn.dataset.slot);
 
         if (action === 'screenshot') captureSlotScreenshot(slotIdx);
+        else if (action === 'open-watch') openSlotWatchPage(slotIdx);
         else if (action === 'solo') setSoloSlot(slotIdx);
         else if (action === 'mute') toggleSlotMute(slotIdx);
         else if (action === 'swap-main') swapMainSlot(slotIdx);
