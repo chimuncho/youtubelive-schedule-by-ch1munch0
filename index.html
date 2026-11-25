@@ -150,6 +150,35 @@
       color: var(--upcoming-blue);
     }
 
+    .multiview-link-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background-color: var(--card-bg);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-size: 0.76rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .multiview-link-btn:hover {
+      background-color: var(--card-hover);
+      border-color: rgba(62, 166, 255, 0.5);
+      color: var(--upcoming-blue);
+    }
+
+    /* スマホ画面・縦長比率では非表示 */
+    @media (max-width: 767px), (orientation: portrait) and (max-width: 1024px) {
+      .multiview-link-btn {
+        display: none !important;
+      }
+    }
+
     .meta-info {
       display: flex;
       align-items: center;
@@ -998,6 +1027,9 @@
               <span class="tab-badge" id="tab-badge-channels">0</span>
             </button>
           </nav>
+          <a class="multiview-link-btn" href="./multiview.html" title="複窓プレイヤー「推しマド！」を開く">
+            <span>⊞ 推しマド！</span>
+          </a>
         </div>
         <div class="meta-info">
           <span id="status-badges"></span>
