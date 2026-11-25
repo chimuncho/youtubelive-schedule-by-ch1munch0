@@ -630,6 +630,25 @@
       color: var(--text-main);
     }
 
+    .mini-btn.shot-btn {
+      color: #e4e4e7;
+    }
+
+    .mini-btn.shot-btn:hover {
+      border-color: rgba(62, 166, 255, 0.55);
+      color: var(--upcoming-blue);
+    }
+
+    .mini-btn.shot-btn.is-capturing {
+      background-color: var(--upcoming-blue);
+      border-color: var(--upcoming-blue);
+      color: #000;
+    }
+
+    .slot-card.is-empty .shot-btn {
+      display: none;
+    }
+
     .mini-btn.solo-btn.is-active {
       background-color: var(--live-red);
       border-color: var(--live-red);
@@ -974,6 +993,7 @@
               <span class="slot-label" id="slot-label-0">空き枠</span>
             </div>
             <div class="slot-controls">
+              <button class="mini-btn shot-btn" type="button" data-action="screenshot" data-slot="0" title="この配信枠を元の解像度でスクショ保存">📷</button>
               <button class="mini-btn solo-btn" type="button" data-action="solo" data-slot="0" title="この枠のみ音声ON (キー: 1)">🔊 ソロ</button>
               <button class="mini-btn mute-btn" type="button" data-action="mute" data-slot="0" title="ミュート切替">🔇</button>
               <input class="vol-slider" type="range" min="0" max="100" value="80" data-slot="0" aria-label="#1 音量">
@@ -997,6 +1017,7 @@
               <span class="slot-label" id="slot-label-1">空き枠</span>
             </div>
             <div class="slot-controls">
+              <button class="mini-btn shot-btn" type="button" data-action="screenshot" data-slot="1" title="この配信枠を元の解像度でスクショ保存">📷</button>
               <button class="mini-btn solo-btn" type="button" data-action="solo" data-slot="1" title="この枠のみ音声ON (キー: 2)">🔊 ソロ</button>
               <button class="mini-btn mute-btn" type="button" data-action="mute" data-slot="1" title="ミュート切替">🔇</button>
               <input class="vol-slider" type="range" min="0" max="100" value="80" data-slot="1" aria-label="#2 音量">
@@ -1020,6 +1041,7 @@
               <span class="slot-label" id="slot-label-2">空き枠</span>
             </div>
             <div class="slot-controls">
+              <button class="mini-btn shot-btn" type="button" data-action="screenshot" data-slot="2" title="この配信枠を元の解像度でスクショ保存">📷</button>
               <button class="mini-btn solo-btn" type="button" data-action="solo" data-slot="2" title="この枠のみ音声ON (キー: 3)">🔊 ソロ</button>
               <button class="mini-btn mute-btn" type="button" data-action="mute" data-slot="2" title="ミュート切替">🔇</button>
               <input class="vol-slider" type="range" min="0" max="100" value="80" data-slot="2" aria-label="#3 音量">
@@ -1043,6 +1065,7 @@
               <span class="slot-label" id="slot-label-3">空き枠</span>
             </div>
             <div class="slot-controls">
+              <button class="mini-btn shot-btn" type="button" data-action="screenshot" data-slot="3" title="この配信枠を元の解像度でスクショ保存">📷</button>
               <button class="mini-btn solo-btn" type="button" data-action="solo" data-slot="3" title="この枠のみ音声ON (キー: 4)">🔊 ソロ</button>
               <button class="mini-btn mute-btn" type="button" data-action="mute" data-slot="3" title="ミュート切替">🔇</button>
               <input class="vol-slider" type="range" min="0" max="100" value="80" data-slot="3" aria-label="#4 音量">
@@ -1066,6 +1089,7 @@
               <span class="slot-label" id="slot-label-4">空き枠</span>
             </div>
             <div class="slot-controls">
+              <button class="mini-btn shot-btn" type="button" data-action="screenshot" data-slot="4" title="この配信枠を元の解像度でスクショ保存">📷</button>
               <button class="mini-btn solo-btn" type="button" data-action="solo" data-slot="4" title="この枠のみ音声ON (キー: 5)">🔊 ソロ</button>
               <button class="mini-btn mute-btn" type="button" data-action="mute" data-slot="4" title="ミュート切替">🔇</button>
               <input class="vol-slider" type="range" min="0" max="100" value="80" data-slot="4" aria-label="#5 音量">
@@ -1089,6 +1113,7 @@
               <span class="slot-label" id="slot-label-5">空き枠</span>
             </div>
             <div class="slot-controls">
+              <button class="mini-btn shot-btn" type="button" data-action="screenshot" data-slot="5" title="この配信枠を元の解像度でスクショ保存">📷</button>
               <button class="mini-btn solo-btn" type="button" data-action="solo" data-slot="5" title="この枠のみ音声ON (キー: 6)">🔊 ソロ</button>
               <button class="mini-btn mute-btn" type="button" data-action="mute" data-slot="5" title="ミュート切替">🔇</button>
               <input class="vol-slider" type="range" min="0" max="100" value="80" data-slot="5" aria-label="#6 音量">
@@ -1226,6 +1251,76 @@
       clearTimeout(toastTimer);
       toastTimer = setTimeout(() => el.classList.remove('is-visible'), 2400);
     }
+
+    /* ===== スクリーンショット連携（Chrome拡張機能） ===== */
+    const pendingScreenshots = new Map();
+    let screenshotSeq = 0;
+
+    function captureSlotScreenshot(slotIdx) {
+      const slot = slots[slotIdx];
+      if (!slot || !slot.videoId) {
+        showToast('配信がセットされていません');
+        return;
+      }
+
+      const mountEl = document.getElementById(`player-mount-${slotIdx}`);
+      const iframe = mountEl ? mountEl.querySelector('iframe') : null;
+      if (!iframe || !iframe.contentWindow) {
+        showToast('プレイヤーの準備ができていません');
+        return;
+      }
+
+      let targetOrigin = 'https://www.youtube.com';
+      try {
+        if (iframe.src) {
+          targetOrigin = new URL(iframe.src).origin;
+        }
+      } catch (e) {}
+
+      const requestId = `shot_${Date.now()}_${++screenshotSeq}`;
+      const cardEl = document.getElementById(`slot-${slotIdx}`);
+      const shotBtn = cardEl ? cardEl.querySelector('.shot-btn') : null;
+      if (shotBtn) shotBtn.classList.add('is-capturing');
+
+      const timeoutId = setTimeout(() => {
+        if (!pendingScreenshots.has(requestId)) return;
+        pendingScreenshots.delete(requestId);
+        if (shotBtn) shotBtn.classList.remove('is-capturing');
+        showToast('拡張機能が未応答です（有効化後にページを再読込してください）');
+      }, 1500);
+
+      pendingScreenshots.set(requestId, { slotIdx, timeoutId, shotBtn });
+
+      iframe.contentWindow.postMessage({
+        type: 'OSHIMADO_CAPTURE_REQUEST',
+        requestId,
+        slotLabel: `#${slotIdx + 1}`,
+        label: slot.channelTitle || slot.title || '',
+        videoId: slot.videoId
+      }, targetOrigin);
+    }
+
+    window.addEventListener('message', (event) => {
+      if (event.origin !== 'https://www.youtube.com' && event.origin !== 'https://www.youtube-nocookie.com') {
+        return;
+      }
+      const data = event.data;
+      if (!data || data.type !== 'OSHIMADO_CAPTURE_RESULT' || !data.requestId) return;
+
+      const pending = pendingScreenshots.get(data.requestId);
+      if (!pending) return;
+
+      clearTimeout(pending.timeoutId);
+      pendingScreenshots.delete(data.requestId);
+      if (pending.shotBtn) pending.shotBtn.classList.remove('is-capturing');
+
+      if (data.ok) {
+        const resInfo = (data.width && data.height) ? ` (${data.width}×${data.height})` : '';
+        showToast(`📷 #${pending.slotIdx + 1} を保存しました${resInfo}`);
+      } else {
+        showToast(`スクショ失敗: ${data.error || '不明なエラー'}`);
+      }
+    });
 
     /* ===== YouTube URL / 動画ID パーサー ===== */
     function extractVideoIds(rawText) {
@@ -1997,7 +2092,8 @@
         const action = btn.dataset.action;
         const slotIdx = Number(btn.dataset.slot);
 
-        if (action === 'solo') setSoloSlot(slotIdx);
+        if (action === 'screenshot') captureSlotScreenshot(slotIdx);
+        else if (action === 'solo') setSoloSlot(slotIdx);
         else if (action === 'mute') toggleSlotMute(slotIdx);
         else if (action === 'swap-main') swapMainSlot(slotIdx);
         else if (action === 'clear') clearSlot(slotIdx);
