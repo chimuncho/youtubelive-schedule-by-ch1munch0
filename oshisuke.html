@@ -1162,7 +1162,7 @@
 
     function getJstDateLabels() {
       const now = new Date();
-      const jstNow = new Date(now.getTime() + (9 * 60 * 60 * 1000) + (now.getTimezoneOffset() * 1000 * 60));
+      const jstNow = new Date(now.getTime() + (9 * 60 * 60 * 1000) + (now.getTimezoneOffset() * 60 * 1000));
       const jstTomorrow = new Date(jstNow.getTime() + 24 * 60 * 60 * 1000);
       const fmt = (d) => `${d.getMonth() + 1}/${d.getDate()}`;
       return {
@@ -1299,11 +1299,13 @@
       activeView = view;
 
       const nextHash = view === 'channels' ? '#channels' : '';
-      if (nextHash) {
-        history.replaceState(null, '', nextHash);
-      } else if (location.hash) {
-        history.replaceState(null, '', location.pathname + location.search);
-      }
+      try {
+        if (nextHash) {
+          history.replaceState(null, '', nextHash);
+        } else if (location.hash) {
+          history.replaceState(null, '', location.pathname + location.search);
+        }
+      } catch (e) {}
 
       render();
     }
