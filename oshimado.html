@@ -1,0 +1,2273 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>推しマド！ | 複窓プレイヤー</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2224%22 fill=%22%231e1e22%22 stroke=%22%23ff0033%22 stroke-width=%228%22/><rect x=%2216%22 y=%2220%22 width=%2230%22 height=%2226%22 rx=%224%22 fill=%22%23ff0033%22/><rect x=%2254%22 y=%2220%22 width=%2230%22 height=%2226%22 rx=%224%22 fill=%22%233ea6ff%22/><rect x=%2216%22 y=%2254%22 width=%2230%22 height=%2226%22 rx=%224%22 fill=%22%233ea6ff%22/><rect x=%2254%22 y=%2254%22 width=%2230%22 height=%2226%22 rx=%224%22 fill=%22%232ba640%22/></svg>">
+  <style>
+    :root {
+      --bg-color: #131316;
+      --header-bg: #131316;
+      --section-bg: #161619;
+      --section-live-bg: #1a1214;
+      --card-bg: #1e1e22;
+      --card-hover: #28282d;
+      --text-main: #f5f5f7;
+      --text-sub: #a1a1a6;
+      --live-red: #ff0033;
+      --live-glow: rgba(255, 0, 51, 0.35);
+      --upcoming-blue: #3ea6ff;
+      --member-green: #2ba640;
+      --tag-main-accent: #a78bfa;
+      --tag-sub-accent: #38bdf8;
+      --warn-amber: #fbbf24;
+      --border-subtle: #2c2c30;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", Meiryo, sans-serif;
+      line-height: 1.35;
+    }
+
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible {
+      outline: 2px solid var(--upcoming-blue);
+      outline-offset: 1px;
+    }
+
+    .app-shell {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      width: 100vw;
+      overflow: hidden;
+    }
+
+    /* ===== ヘッダー ===== */
+    header {
+      background-color: var(--header-bg);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 5px 12px;
+      flex-shrink: 0;
+      z-index: 60;
+    }
+
+    body.is-immersive header {
+      display: none;
+    }
+
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .header-left,
+    .header-center,
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-right: 4px;
+    }
+
+    .app-title {
+      font-size: 0.96rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+
+    .app-title .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--live-red);
+      box-shadow: 0 0 8px var(--live-red);
+    }
+
+    .back-link {
+      font-size: 0.72rem;
+      color: var(--text-sub);
+      text-decoration: none;
+      background-color: var(--section-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 3px 8px;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .back-link:hover {
+      color: var(--text-main);
+      background-color: var(--card-hover);
+    }
+
+    /* ボタン共通 */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      background-color: var(--card-bg);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 4px 9px;
+      font-size: 0.74rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .btn:hover:not(:disabled) {
+      background-color: var(--card-hover);
+      border-color: #3f3f46;
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background-color: rgba(62, 166, 255, 0.16);
+      border-color: rgba(62, 166, 255, 0.5);
+      color: var(--upcoming-blue);
+    }
+
+    .btn-primary:hover:not(:disabled),
+    .btn-primary.is-active {
+      background-color: var(--upcoming-blue);
+      color: #000;
+      border-color: var(--upcoming-blue);
+    }
+
+    .btn-live {
+      background-color: rgba(255, 0, 51, 0.16);
+      border-color: rgba(255, 0, 51, 0.55);
+      color: #ff5c77;
+    }
+
+    .btn-live:hover:not(:disabled) {
+      background-color: var(--live-red);
+      color: #fff;
+      border-color: var(--live-red);
+    }
+
+    /* レイアウト切替セグメント */
+    .layout-switcher {
+      display: inline-flex;
+      background-color: var(--section-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 7px;
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .layout-btn {
+      background: transparent;
+      color: var(--text-sub);
+      border: none;
+      border-radius: 5px;
+      padding: 3px 8px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .layout-btn:hover {
+      color: var(--text-main);
+    }
+
+    .layout-btn.active {
+      background-color: var(--card-hover);
+      color: var(--text-main);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+
+    /* ===== 「推しスケ！」連携ドロワー ===== */
+    .drawer-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      z-index: 80;
+      display: none;
+    }
+
+    .drawer-backdrop.is-open {
+      display: block;
+    }
+
+    .schedule-drawer {
+      position: fixed;
+      top: 42px;
+      left: 12px;
+      right: 12px;
+      max-width: 1360px;
+      margin: 0 auto;
+      max-height: calc(100dvh - 58px);
+      background-color: #18181c;
+      border: 1px solid #3a3a42;
+      border-radius: 12px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+      z-index: 90;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .schedule-drawer.is-open {
+      display: flex;
+    }
+
+    .drawer-top {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background-color: #141418;
+      flex-shrink: 0;
+    }
+
+    .drawer-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .drawer-title-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .drawer-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+    }
+
+    .drawer-meta {
+      font-size: 0.72rem;
+      color: var(--text-sub);
+    }
+
+    .manual-add-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .manual-input {
+      flex: 1;
+      min-width: 240px;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 5px 10px;
+      font-size: 0.76rem;
+    }
+
+    .manual-input:focus {
+      border-color: var(--upcoming-blue);
+    }
+
+    .drawer-filter-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .chip {
+      background-color: var(--card-bg);
+      color: var(--text-sub);
+      border: 1px solid var(--border-subtle);
+      border-radius: 999px;
+      padding: 2px 9px;
+      font-size: 0.71rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .chip:hover {
+      background-color: var(--card-hover);
+      color: var(--text-main);
+    }
+
+    .chip.active {
+      background-color: var(--upcoming-blue);
+      color: #000;
+      border-color: var(--upcoming-blue);
+      font-weight: 700;
+    }
+
+    .chip.live-chip.active {
+      background-color: var(--live-red);
+      color: #fff;
+      border-color: var(--live-red);
+    }
+
+    .drawer-body {
+      padding: 12px 14px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .drawer-sec-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-sub);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .drawer-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 8px;
+    }
+
+    .d-card {
+      display: flex;
+      flex-direction: column;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      text-align: left;
+      color: inherit;
+      transition: transform 0.12s, background-color 0.12s, border-color 0.12s;
+      position: relative;
+    }
+
+    .d-card:hover {
+      background-color: var(--card-hover);
+      transform: translateY(-1px);
+    }
+
+    .d-card.is-live {
+      border-color: rgba(255, 0, 51, 0.55);
+    }
+
+    .d-card.is-selected {
+      border: 2px solid var(--upcoming-blue);
+      background-color: rgba(62, 166, 255, 0.1);
+    }
+
+    .d-thumb {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #000;
+    }
+
+    .d-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .d-badges {
+      position: absolute;
+      bottom: 4px;
+      left: 4px;
+      display: flex;
+      gap: 4px;
+    }
+
+    .d-badge {
+      font-size: 0.62rem;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: rgba(15, 15, 15, 0.88);
+    }
+
+    .d-badge.live {
+      background: var(--live-red);
+      color: #fff;
+    }
+
+    .d-badge.upcoming {
+      color: var(--upcoming-blue);
+      border: 1px solid rgba(62, 166, 255, 0.4);
+    }
+
+    .d-badge.member {
+      color: #4ade80;
+      border: 1px solid rgba(43, 166, 64, 0.6);
+    }
+
+    .d-slot-badge {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      background: var(--upcoming-blue);
+      color: #000;
+      font-size: 0.65rem;
+      font-weight: 800;
+      padding: 1px 6px;
+      border-radius: 4px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+    }
+
+    .d-info {
+      padding: 6px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .d-ch {
+      font-size: 0.71rem;
+      font-weight: 700;
+      color: var(--text-sub);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .d-title {
+      font-size: 0.73rem;
+      color: var(--text-main);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* ===== メインワークスペース（プレイヤーグリッド + チャットサイドバー） ===== */
+    .workspace {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+      min-width: 0;
+      background-color: #0b0b0d;
+      position: relative;
+    }
+
+    .stage-container {
+      flex: 1;
+      display: grid;
+      gap: 4px;
+      padding: 4px;
+      min-height: 0;
+      min-width: 0;
+    }
+
+    /* レイアウト1: 1x2（2窓横並び） */
+    .stage-container.layout-1x2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-rows: minmax(0, 1fr);
+    }
+
+    /* レイアウト2: 2窓+並列チャット（通常Chrome＋ブックマークバーでも入力欄が収まる比率） */
+    .stage-container.layout-2chat {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-rows: minmax(0, 1fr) minmax(min(425px, 54%), 1.1fr);
+    }
+
+    /* レイアウト3: 2x2（4窓） */
+    .stage-container.layout-2x2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-rows: repeat(2, minmax(0, 1fr));
+    }
+
+    /* レイアウト4: 1メイン+3サブ */
+    .stage-container.layout-1plus3 {
+      grid-template-columns: minmax(0, 2.35fr) minmax(260px, 1fr);
+      grid-template-rows: repeat(3, minmax(0, 1fr));
+    }
+
+    .stage-container.layout-1plus3 .slot-card.is-main-slot {
+      grid-column: 1 / 2;
+      grid-row: 1 / 4;
+      order: -1;
+    }
+
+    /* レイアウト5: 3x2（6窓） */
+    .stage-container.layout-3x2 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-rows: repeat(2, minmax(0, 1fr));
+    }
+
+    /* ===== 各プレイヤー枠（DOM非破棄で表示・順序を制御） ===== */
+    .slot-card {
+      display: flex;
+      flex-direction: column;
+      background-color: var(--section-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      overflow: hidden;
+      min-height: 0;
+      min-width: 0;
+      position: relative;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .slot-card.is-hidden-by-layout {
+      display: none !important;
+    }
+
+    .slot-card.is-solo {
+      border: 2px solid var(--live-red);
+      box-shadow: 0 0 14px var(--live-glow), inset 0 0 6px var(--live-glow);
+    }
+
+    .slot-bar {
+      height: 25px;
+      background-color: #18181d;
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .slot-card.is-solo .slot-bar {
+      background-color: #241216;
+      border-bottom-color: rgba(255, 0, 51, 0.4);
+    }
+
+    .slot-bar-left {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .slot-num {
+      font-size: 0.68rem;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background-color: var(--card-hover);
+      color: var(--text-sub);
+      flex-shrink: 0;
+    }
+
+    .slot-card.is-solo .slot-num {
+      background-color: var(--live-red);
+      color: #fff;
+    }
+
+    .slot-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .slot-controls {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .mini-btn {
+      background-color: var(--card-bg);
+      color: var(--text-sub);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 0.66rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.12s;
+      line-height: 1.2;
+    }
+
+    .mini-btn:hover {
+      background-color: var(--card-hover);
+      color: var(--text-main);
+    }
+
+    .mini-btn.shot-btn {
+      color: #e4e4e7;
+    }
+
+    .mini-btn.shot-btn:hover {
+      border-color: rgba(62, 166, 255, 0.55);
+      color: var(--upcoming-blue);
+    }
+
+    .mini-btn.shot-btn.is-capturing {
+      background-color: var(--upcoming-blue);
+      border-color: var(--upcoming-blue);
+      color: #000;
+    }
+
+    .mini-btn.like-btn {
+      color: #e4e4e7;
+    }
+
+    .mini-btn.like-btn:hover {
+      border-color: rgba(62, 166, 255, 0.55);
+      color: var(--upcoming-blue);
+    }
+
+    .slot-card.is-empty .shot-btn,
+    .slot-card.is-empty .like-btn {
+      display: none;
+    }
+
+    .mini-btn.solo-btn.is-active {
+      background-color: var(--live-red);
+      border-color: var(--live-red);
+      color: #fff;
+    }
+
+    .mini-btn.mute-btn.is-unmuted {
+      color: var(--upcoming-blue);
+      border-color: rgba(62, 166, 255, 0.45);
+    }
+
+    .mini-btn.main-swap-btn {
+      display: none;
+      color: var(--tag-main-accent);
+      border-color: rgba(167, 139, 250, 0.4);
+    }
+
+    .stage-container.layout-1plus3 .slot-card:not(.is-main-slot):not(.is-empty) .mini-btn.main-swap-btn {
+      display: inline-flex;
+    }
+
+    .vol-slider {
+      width: 52px;
+      height: 4px;
+      accent-color: var(--upcoming-blue);
+      cursor: pointer;
+    }
+
+    .slot-card.is-solo .vol-slider {
+      accent-color: var(--live-red);
+    }
+
+    .player-viewport {
+      flex: 1;
+      position: relative;
+      background-color: #000;
+      min-height: 0;
+      min-width: 0;
+    }
+
+    .player-mount,
+    .player-mount iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+
+    .empty-slot-placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background-color: #121215;
+      color: var(--text-sub);
+      padding: 12px;
+      text-align: center;
+    }
+
+    .slot-card:not(.is-empty) .empty-slot-placeholder {
+      display: none;
+    }
+
+    .empty-slot-hint {
+      font-size: 0.74rem;
+    }
+
+    /* ===== 2窓+並列チャット用下段ペイン ===== */
+    .parallel-chat-pane {
+      display: none;
+      flex-direction: column;
+      background-color: var(--section-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      overflow: hidden;
+      min-height: 0;
+      min-width: 0;
+    }
+
+    .stage-container.layout-2chat .parallel-chat-pane {
+      display: flex;
+    }
+
+    .chat-pane-header {
+      height: 21px;
+      background-color: #18181d;
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 0 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--text-sub);
+      flex-shrink: 0;
+    }
+
+    .chat-iframe-wrap {
+      flex: 1;
+      position: relative;
+      background-color: #0f0f12;
+      min-height: 0;
+    }
+
+    .chat-iframe-wrap iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+
+    .chat-empty-msg {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.74rem;
+      color: var(--text-sub);
+      padding: 12px;
+      text-align: center;
+    }
+
+    /* ===== 右サイドバーチャット（2chat以外のレイアウト用） ===== */
+    .chat-sidebar {
+      width: 340px;
+      max-width: 38vw;
+      background-color: var(--section-bg);
+      border-left: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      min-height: 0;
+    }
+
+    .chat-sidebar.is-collapsed,
+    .stage-container.layout-2chat + .chat-sidebar {
+      display: none;
+    }
+
+    .chat-tabs-bar {
+      display: flex;
+      align-items: center;
+      background-color: #18181d;
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 4px 6px;
+      gap: 3px;
+      flex-shrink: 0;
+    }
+
+    .chat-tab {
+      flex: 1;
+      background: transparent;
+      color: var(--text-sub);
+      border: 1px solid transparent;
+      border-radius: 5px;
+      padding: 3px 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.12s;
+      text-align: center;
+    }
+
+    .chat-tab:hover:not(:disabled) {
+      background-color: var(--card-hover);
+      color: var(--text-main);
+    }
+
+    .chat-tab.active {
+      background-color: var(--card-bg);
+      color: var(--upcoming-blue);
+      border-color: rgba(62, 166, 255, 0.45);
+    }
+
+    .chat-tab:disabled {
+      opacity: 0.3;
+      cursor: default;
+    }
+
+    .sidebar-chat-stack {
+      flex: 1;
+      position: relative;
+      min-height: 0;
+      background-color: #0f0f12;
+    }
+
+    .sidebar-chat-frame {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: none;
+    }
+
+    .sidebar-chat-frame.is-active {
+      display: block;
+    }
+
+    /* 没入モード復帰ボタン */
+    .exit-immersive-btn {
+      position: fixed;
+      top: 8px;
+      right: 12px;
+      z-index: 100;
+      background-color: rgba(24, 24, 29, 0.88);
+      color: var(--text-main);
+      border: 1px solid #3f3f46;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: none;
+      backdrop-filter: blur(4px);
+    }
+
+    body.is-immersive .exit-immersive-btn {
+      display: inline-flex;
+    }
+
+    /* トースト通知 */
+    .toast {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background-color: #24242b;
+      color: var(--text-main);
+      border: 1px solid #44444e;
+      border-radius: 8px;
+      padding: 7px 14px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.7);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s, transform 0.2s;
+      z-index: 150;
+    }
+
+    .toast.is-visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    @media (max-width: 820px) {
+      .vol-slider {
+        display: none;
+      }
+      .chat-sidebar {
+        width: 260px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header>
+      <div class="header-inner">
+        <div class="header-left">
+          <div class="brand-group">
+            <div class="app-title">
+              <span class="dot"></span>
+              <span>推しマド！</span>
+            </div>
+            <a class="back-link" href="./oshisuke.html" title="推しスケ！へ戻る">← 推しスケ！</a>
+          </div>
+
+          <button class="btn btn-primary" id="btn-toggle-drawer" type="button" title="ショートカット: D">
+            📺 推しスケから選ぶ <span id="live-count-badge">(0)</span>
+          </button>
+
+          <button class="btn btn-live" id="btn-open-all-live" type="button">
+            🔴 配信中を一括展開
+          </button>
+        </div>
+
+        <div class="header-center">
+          <div class="layout-switcher" role="group" aria-label="画面レイアウト切替">
+            <button class="layout-btn" type="button" data-layout="1x2">1×2</button>
+            <button class="layout-btn active" type="button" data-layout="2chat">2窓+チャット</button>
+            <button class="layout-btn" type="button" data-layout="2x2">2×2</button>
+            <button class="layout-btn" type="button" data-layout="1plus3">1メイン+3</button>
+            <button class="layout-btn" type="button" data-layout="3x2">3×2</button>
+          </div>
+        </div>
+
+        <div class="header-right">
+          <button class="btn" id="btn-mute-all" type="button" title="ショートカット: M">🔇 全ミュート</button>
+          <button class="btn" id="btn-play-all" type="button">▶ 一括再生</button>
+          <button class="btn" id="btn-pause-all" type="button">⏸ 一括停止</button>
+          <button class="btn" id="btn-toggle-chat" type="button" title="ショートカット: C">💬 チャット</button>
+          <button class="btn" id="btn-copy-url" type="button">🔗 共有URL</button>
+          <button class="btn" id="btn-immersive" type="button" title="ショートカット: F">⛶ 没入</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- 推しスケ！連携ドロワー -->
+    <div class="drawer-backdrop" id="drawer-backdrop"></div>
+    <section class="schedule-drawer" id="schedule-drawer" aria-label="配信枠の選択と追加">
+      <div class="drawer-top">
+        <div class="drawer-header-row">
+          <div class="drawer-title-group">
+            <span class="drawer-title">📺 配信枠を選択（クリックで窓へ追加／解除）</span>
+            <span class="drawer-meta" id="drawer-sync-status">キャッシュ読込中...</span>
+          </div>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <button class="btn" id="btn-refresh-api" type="button">🔄 最新取得</button>
+            <button class="btn" id="btn-clear-all-slots" type="button">🗑 全窓クリア</button>
+            <button class="btn" id="btn-close-drawer" type="button">✕ 閉じる</button>
+          </div>
+        </div>
+
+        <div class="manual-add-row">
+          <input class="manual-input" id="manual-url-input" type="text" placeholder="YouTube URL または 11桁動画ID（カンマ・スペース区切りで複数一括追加可）">
+          <button class="btn btn-primary" id="btn-manual-add" type="button">＋ 空き枠へ追加</button>
+          <button class="btn" id="btn-manual-replace" type="button">⚡ 入力枠で一括セット</button>
+        </div>
+
+        <div class="drawer-filter-row" id="drawer-tag-filters"></div>
+      </div>
+
+      <div class="drawer-body" id="drawer-body"></div>
+    </section>
+
+    <!-- メインワークスペース -->
+    <div class="workspace">
+      <main class="stage-container layout-2chat" id="stage-container">
+        <!-- 6枠分のスロットはDOMを破棄せずCSS Gridで再配置 -->
+        <div class="slot-card is-empty is-main-slot" id="slot-0" data-slot="0">
+          <div class="slot-bar">
+            <div class="slot-bar-left">
+              <span class="slot-num">#1</span>
+              <span class="slot-label" id="slot-label-0">空き枠</span>
+            </div>
+            <div class="slot-controls">
+              <button class="mini-btn shot-btn" type="button" data-action="screenshot" data-slot="0" title="この配信枠を元の解像度でスクショ保存">📷</button>
+              <button class="mini-btn like-btn" type="button" data-action="open-watch" data-slot="0" title="YouTube本家ページを開いて高評価・チャンネル登録する">👍</button>
+              <button class="mini-btn solo-btn" type="button" data-action="solo" data-slot="0" title="この枠のみ音声ON (キー: 1)">🔊 ソロ</button>
+              <button class="mini-btn mute-btn" type="button" data-action="mute" data-slot="0" title="ミュート切替">🔇</button>
+              <input class="vol-slider" type="range" min="0" max="100" value="80" data-slot="0" aria-label="#1 音量">
+              <button class="mini-btn main-swap-btn" type="button" data-action="swap-main" data-slot="0">メインへ</button>
+              <button class="mini-btn" type="button" data-action="clear" data-slot="0" title="枠を閉じる">✕</button>
+            </div>
+          </div>
+          <div class="player-viewport">
+            <div class="player-mount" id="player-mount-0"></div>
+            <div class="empty-slot-placeholder">
+              <div class="empty-slot-hint">#1 配信が未セットです</div>
+              <button class="btn btn-primary" type="button" data-action="open-drawer">＋ 配信を選ぶ</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="slot-card is-empty" id="slot-1" data-slot="1">
+          <div class="slot-bar">
+            <div class="slot-bar-left">
+              <span class="slot-num">#2</span>
+              <span class="slot-label" id="slot-label-1">空き枠</span>
+            </div>
+            <div class="slot-controls">
+              <button class="mini-btn shot-btn" type="button" data-action="screenshot" data-slot="1" title="この配信枠を元の解像度でスクショ保存">📷</button>
+              <button class="mini-btn like-btn" type="button" data-action="open-watch" data-slot="1" title="YouTube本家ページを開いて高評価・チャンネル登録する">👍</button>
+              <button class="mini-btn solo-btn" type="button" data-action="solo" data-slot="1" title="この枠のみ音声ON (キー: 2)">🔊 ソロ</button>
+              <button class="mini-btn mute-btn" type="button" data-action="mute" data-slot="1" title="ミュート切替">🔇</button>
+              <input class="vol-slider" type="range" min="0" max="100" value="80" data-slot="1" aria-label="#2 音量">
+              <button class="mini-btn main-swap-btn" type="button" data-action="swap-main" data-slot="1">メインへ</button>
+              <button class="mini-btn" type="button" data-action="clear" data-slot="1" title="枠を閉じる">✕</button>
+            </div>
+          </div>
+          <div class="player-viewport">
+            <div class="player-mount" id="player-mount-1"></div>
+            <div class="empty-slot-placeholder">
+              <div class="empty-slot-hint">#2 配信が未セットです</div>
+              <button class="btn btn-primary" type="button" data-action="open-drawer">＋ 配信を選ぶ</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="slot-card is-empty is-hidden-by-layout" id="slot-2" data-slot="2">
+          <div class="slot-bar">
+            <div class="slot-bar-left">
+              <span class="slot-num">#3</span>
+              <span class="slot-label" id="slot-label-2">空き枠</span>
+            </div>
+            <div class="slot-controls">
+              <button class="mini-btn shot-btn" type="button" data-action="screenshot" data-slot="2" title="この配信枠を元の解像度でスクショ保存">📷</button>
+              <button class="mini-btn like-btn" type="button" data-action="open-watch" data-slot="2" title="YouTube本家ページを開いて高評価・チャンネル登録する">👍</button>
+              <button class="mini-btn solo-btn" type="button" data-action="solo" data-slot="2" title="この枠のみ音声ON (キー: 3)">🔊 ソロ</button>
+              <button class="mini-btn mute-btn" type="button" data-action="mute" data-slot="2" title="ミュート切替">🔇</button>
+              <input class="vol-slider" type="range" min="0" max="100" value="80" data-slot="2" aria-label="#3 音量">
+              <button class="mini-btn main-swap-btn" type="button" data-action="swap-main" data-slot="2">メインへ</button>
+              <button class="mini-btn" type="button" data-action="clear" data-slot="2" title="枠を閉じる">✕</button>
+            </div>
+          </div>
+          <div class="player-viewport">
+            <div class="player-mount" id="player-mount-2"></div>
+            <div class="empty-slot-placeholder">
+              <div class="empty-slot-hint">#3 配信が未セットです</div>
+              <button class="btn btn-primary" type="button" data-action="open-drawer">＋ 配信を選ぶ</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="slot-card is-empty is-hidden-by-layout" id="slot-3" data-slot="3">
+          <div class="slot-bar">
+            <div class="slot-bar-left">
+              <span class="slot-num">#4</span>
+              <span class="slot-label" id="slot-label-3">空き枠</span>
+            </div>
+            <div class="slot-controls">
+              <button class="mini-btn shot-btn" type="button" data-action="screenshot" data-slot="3" title="この配信枠を元の解像度でスクショ保存">📷</button>
+              <button class="mini-btn like-btn" type="button" data-action="open-watch" data-slot="3" title="YouTube本家ページを開いて高評価・チャンネル登録する">👍</button>
+              <button class="mini-btn solo-btn" type="button" data-action="solo" data-slot="3" title="この枠のみ音声ON (キー: 4)">🔊 ソロ</button>
+              <button class="mini-btn mute-btn" type="button" data-action="mute" data-slot="3" title="ミュート切替">🔇</button>
+              <input class="vol-slider" type="range" min="0" max="100" value="80" data-slot="3" aria-label="#4 音量">
+              <button class="mini-btn main-swap-btn" type="button" data-action="swap-main" data-slot="3">メインへ</button>
+              <button class="mini-btn" type="button" data-action="clear" data-slot="3" title="枠を閉じる">✕</button>
+            </div>
+          </div>
+          <div class="player-viewport">
+            <div class="player-mount" id="player-mount-3"></div>
+            <div class="empty-slot-placeholder">
+              <div class="empty-slot-hint">#4 配信が未セットです</div>
+              <button class="btn btn-primary" type="button" data-action="open-drawer">＋ 配信を選ぶ</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="slot-card is-empty is-hidden-by-layout" id="slot-4" data-slot="4">
+          <div class="slot-bar">
+            <div class="slot-bar-left">
+              <span class="slot-num">#5</span>
+              <span class="slot-label" id="slot-label-4">空き枠</span>
+            </div>
+            <div class="slot-controls">
+              <button class="mini-btn shot-btn" type="button" data-action="screenshot" data-slot="4" title="この配信枠を元の解像度でスクショ保存">📷</button>
+              <button class="mini-btn like-btn" type="button" data-action="open-watch" data-slot="4" title="YouTube本家ページを開いて高評価・チャンネル登録する">👍</button>
+              <button class="mini-btn solo-btn" type="button" data-action="solo" data-slot="4" title="この枠のみ音声ON (キー: 5)">🔊 ソロ</button>
+              <button class="mini-btn mute-btn" type="button" data-action="mute" data-slot="4" title="ミュート切替">🔇</button>
+              <input class="vol-slider" type="range" min="0" max="100" value="80" data-slot="4" aria-label="#5 音量">
+              <button class="mini-btn main-swap-btn" type="button" data-action="swap-main" data-slot="4">メインへ</button>
+              <button class="mini-btn" type="button" data-action="clear" data-slot="4" title="枠を閉じる">✕</button>
+            </div>
+          </div>
+          <div class="player-viewport">
+            <div class="player-mount" id="player-mount-4"></div>
+            <div class="empty-slot-placeholder">
+              <div class="empty-slot-hint">#5 配信が未セットです</div>
+              <button class="btn btn-primary" type="button" data-action="open-drawer">＋ 配信を選ぶ</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="slot-card is-empty is-hidden-by-layout" id="slot-5" data-slot="5">
+          <div class="slot-bar">
+            <div class="slot-bar-left">
+              <span class="slot-num">#6</span>
+              <span class="slot-label" id="slot-label-5">空き枠</span>
+            </div>
+            <div class="slot-controls">
+              <button class="mini-btn shot-btn" type="button" data-action="screenshot" data-slot="5" title="この配信枠を元の解像度でスクショ保存">📷</button>
+              <button class="mini-btn like-btn" type="button" data-action="open-watch" data-slot="5" title="YouTube本家ページを開いて高評価・チャンネル登録する">👍</button>
+              <button class="mini-btn solo-btn" type="button" data-action="solo" data-slot="5" title="この枠のみ音声ON (キー: 6)">🔊 ソロ</button>
+              <button class="mini-btn mute-btn" type="button" data-action="mute" data-slot="5" title="ミュート切替">🔇</button>
+              <input class="vol-slider" type="range" min="0" max="100" value="80" data-slot="5" aria-label="#6 音量">
+              <button class="mini-btn main-swap-btn" type="button" data-action="swap-main" data-slot="5">メインへ</button>
+              <button class="mini-btn" type="button" data-action="clear" data-slot="5" title="枠を閉じる">✕</button>
+            </div>
+          </div>
+          <div class="player-viewport">
+            <div class="player-mount" id="player-mount-5"></div>
+            <div class="empty-slot-placeholder">
+              <div class="empty-slot-hint">#6 配信が未セットです</div>
+              <button class="btn btn-primary" type="button" data-action="open-drawer">＋ 配信を選ぶ</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2窓+並列チャット用 下段チャットペイン -->
+        <div class="parallel-chat-pane" id="parallel-chat-0">
+          <div class="chat-pane-header">
+            <span id="parallel-chat-title-0">💬 #1 チャット</span>
+          </div>
+          <div class="chat-iframe-wrap" id="parallel-chat-wrap-0">
+            <div class="chat-empty-msg">#1 に配信をセットするとチャットが表示されます</div>
+          </div>
+        </div>
+
+        <div class="parallel-chat-pane" id="parallel-chat-1">
+          <div class="chat-pane-header">
+            <span id="parallel-chat-title-1">💬 #2 チャット</span>
+          </div>
+          <div class="chat-iframe-wrap" id="parallel-chat-wrap-1">
+            <div class="chat-empty-msg">#2 に配信をセットするとチャットが表示されます</div>
+          </div>
+        </div>
+      </main>
+
+      <!-- 右サイドバーチャット（2chat以外のレイアウト用） -->
+      <aside class="chat-sidebar" id="chat-sidebar" aria-label="ライブチャット">
+        <div class="chat-tabs-bar" id="chat-tabs-bar">
+          <button class="chat-tab active" type="button" data-chat-slot="0" disabled>#1</button>
+          <button class="chat-tab" type="button" data-chat-slot="1" disabled>#2</button>
+          <button class="chat-tab" type="button" data-chat-slot="2" disabled>#3</button>
+          <button class="chat-tab" type="button" data-chat-slot="3" disabled>#4</button>
+          <button class="chat-tab" type="button" data-chat-slot="4" disabled>#5</button>
+          <button class="chat-tab" type="button" data-chat-slot="5" disabled>#6</button>
+        </div>
+        <div class="sidebar-chat-stack" id="sidebar-chat-stack">
+          <div class="chat-empty-msg" id="sidebar-chat-empty">配信をセットするとチャットが表示されます</div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <button class="exit-immersive-btn" id="btn-exit-immersive" type="button">✕ ツールバー復帰 (F)</button>
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzKEjdp1EPCZ_8jCAvaGfTdOA9kCVBnau0XdnR9-uuj7kYlAbqp-jRQrAouMQnUSqPs/exec';
+    const LOCAL_STORAGE_KEY = 'yt_live_schedule_cache_v9';
+    const MAX_SLOTS = 6;
+    const VIDEO_ID_REGEX = /^[a-zA-Z0-9_-]{11}$/;
+
+    const ALLOWED_IMAGE_HOSTS = new Set([
+      'i.ytimg.com', 'i1.ytimg.com', 'i2.ytimg.com', 'i3.ytimg.com', 'i4.ytimg.com', 'img.youtube.com'
+    ]);
+
+    const LAYOUT_CAPACITY = {
+      '1x2': 2,
+      '2chat': 2,
+      '2x2': 4,
+      '1plus3': 4,
+      '3x2': 6
+    };
+
+    // スロット状態
+    const slots = Array.from({ length: MAX_SLOTS }, (_, i) => ({
+      index: i,
+      videoId: null,
+      title: '',
+      channelTitle: '',
+      player: null,
+      playerReady: false,
+      isMuted: true,
+      volume: 80
+    }));
+
+    let currentLayout = '2chat';
+    let mainSlotIndex = 0;
+    let soloSlotIndex = null;
+    let activeSidebarChatSlot = 0;
+    let isChatSidebarOpen = true;
+    let isDrawerOpen = false;
+
+    // 推しスケ！データ
+    let scheduleLives = [];
+    let tagMeta = [];
+    let drawerSelectedTag = 'ALL';
+    let drawerOnlyLive = false;
+
+    // YouTube IFrame API 状態
+    let ytApiReady = false;
+    const pendingVideoLoads = new Map();
+
+    // キャッシュ済みのチャットiframe管理（DOM非破棄でタブ切替高速化）
+    const sidebarChatFrames = new Map();
+    const parallelChatVideoIds = [null, null];
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function sanitizeThumbUrl(rawUrl, videoId) {
+      const fallback = videoId ? `https://i.ytimg.com/vi/${encodeURIComponent(videoId)}/hqdefault.jpg` : '';
+      if (!rawUrl) return fallback;
+      try {
+        const u = new URL(String(rawUrl));
+        if (u.protocol === 'https:' && ALLOWED_IMAGE_HOSTS.has(u.hostname.toLowerCase())) {
+          return u.href;
+        }
+      } catch (e) {}
+      return fallback;
+    }
+
+    let toastTimer = null;
+    function showToast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('is-visible');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('is-visible'), 2400);
+    }
+
+    /* ===== YouTube本家ページをミニウィンドウで開く（高評価・チャンネル登録用） ===== */
+    const pendingPopupRequests = new Map();
+    let popupReqSeq = 0;
+
+    window.addEventListener('message', (event) => {
+      if (event.source !== window) return;
+      const data = event.data;
+      if (!data || data.type !== 'OSHIMADO_OPEN_WATCH_POPUP_RES' || !data.requestId) return;
+
+      const pending = pendingPopupRequests.get(data.requestId);
+      if (!pending) return;
+
+      clearTimeout(pending.timeoutId);
+      pendingPopupRequests.delete(data.requestId);
+
+      if (data.ok) {
+        showToast(
+          data.reused
+            ? `👍 #${pending.slotIdx + 1} をミニウィンドウで切り替えました`
+            : `👍 #${pending.slotIdx + 1} をミニウィンドウで開きました`
+        );
+      } else {
+        pending.fallback();
+      }
+    });
+
+    function openSlotWatchPage(slotIdx) {
+      const slot = slots[slotIdx];
+      if (!slot || !slot.videoId) {
+        showToast('配信がセットされていません');
+        return;
+      }
+      const watchUrl = `https://www.youtube.com/watch?v=${encodeURIComponent(slot.videoId)}#oshimado_popup`;
+
+      const width = 640;
+      const height = 780;
+      const screenLeft = window.screenLeft !== undefined ? window.screenLeft : window.screenX;
+      const screenTop = window.screenTop !== undefined ? window.screenTop : window.screenY;
+      const availWidth = window.screen.availWidth || window.innerWidth;
+      const availHeight = window.screen.availHeight || window.innerHeight;
+      const left = Math.round(Math.max(screenLeft, screenLeft + availWidth - width - 24));
+      const top = Math.round(Math.max(screenTop, screenTop + availHeight - height - 24));
+
+      const fallbackOpen = () => {
+        const features = `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`;
+        const popup = window.open(watchUrl, 'oshimado_watch_popup', features);
+        if (popup) {
+          popup.focus();
+          showToast(`👍 #${slotIdx + 1} をミニウィンドウで開きました`);
+        } else {
+          window.open(watchUrl, '_blank', 'noopener,noreferrer');
+          showToast(`👍 #${slotIdx + 1} のYouTubeページを開きました`);
+        }
+      };
+
+      const requestId = `popup_${Date.now()}_${++popupReqSeq}`;
+      const timeoutId = setTimeout(() => {
+        if (!pendingPopupRequests.has(requestId)) return;
+        pendingPopupRequests.delete(requestId);
+        fallbackOpen();
+      }, 250);
+
+      pendingPopupRequests.set(requestId, {
+        slotIdx,
+        timeoutId,
+        fallback: fallbackOpen
+      });
+
+      window.postMessage(
+        {
+          type: 'OSHIMADO_OPEN_WATCH_POPUP_REQ',
+          requestId,
+          url: watchUrl,
+          width,
+          height,
+          left,
+          top
+        },
+        '*'
+      );
+    }
+
+    /* ===== スクリーンショット連携（Chrome拡張機能） ===== */
+    const pendingScreenshots = new Map();
+    let screenshotSeq = 0;
+
+    function captureSlotScreenshot(slotIdx) {
+      const slot = slots[slotIdx];
+      if (!slot || !slot.videoId) {
+        showToast('配信がセットされていません');
+        return;
+      }
+
+      const mountEl = document.getElementById(`player-mount-${slotIdx}`);
+      const iframe = mountEl ? mountEl.querySelector('iframe') : null;
+      if (!iframe || !iframe.contentWindow) {
+        showToast('プレイヤーの準備ができていません');
+        return;
+      }
+
+      let targetOrigin = 'https://www.youtube.com';
+      try {
+        if (iframe.src) {
+          targetOrigin = new URL(iframe.src).origin;
+        }
+      } catch (e) {}
+
+      const requestId = `shot_${Date.now()}_${++screenshotSeq}`;
+      const cardEl = document.getElementById(`slot-${slotIdx}`);
+      const shotBtn = cardEl ? cardEl.querySelector('.shot-btn') : null;
+      if (shotBtn) shotBtn.classList.add('is-capturing');
+
+      const timeoutId = setTimeout(() => {
+        if (!pendingScreenshots.has(requestId)) return;
+        pendingScreenshots.delete(requestId);
+        if (shotBtn) shotBtn.classList.remove('is-capturing');
+        showToast('拡張機能が未応答です（有効化後にページを再読込してください）');
+      }, 1500);
+
+      pendingScreenshots.set(requestId, { slotIdx, timeoutId, shotBtn });
+
+      iframe.contentWindow.postMessage({
+        type: 'OSHIMADO_CAPTURE_REQUEST',
+        requestId,
+        slotLabel: `#${slotIdx + 1}`,
+        label: slot.channelTitle || slot.title || '',
+        videoId: slot.videoId
+      }, targetOrigin);
+    }
+
+    window.addEventListener('message', (event) => {
+      if (event.origin !== 'https://www.youtube.com' && event.origin !== 'https://www.youtube-nocookie.com') {
+        return;
+      }
+      const data = event.data;
+      if (!data || data.type !== 'OSHIMADO_CAPTURE_RESULT' || !data.requestId) return;
+
+      const pending = pendingScreenshots.get(data.requestId);
+      if (!pending) return;
+
+      clearTimeout(pending.timeoutId);
+      pendingScreenshots.delete(data.requestId);
+      if (pending.shotBtn) pending.shotBtn.classList.remove('is-capturing');
+
+      if (data.ok) {
+        const resInfo = (data.width && data.height) ? ` (${data.width}×${data.height})` : '';
+        showToast(`📷 #${pending.slotIdx + 1} を保存しました${resInfo}`);
+      } else {
+        showToast(`スクショ失敗: ${data.error || '不明なエラー'}`);
+      }
+    });
+
+    /* ===== YouTube URL / 動画ID パーサー ===== */
+    function extractVideoIds(rawText) {
+      if (!rawText) return [];
+      const tokens = String(rawText).split(/[\s,、\n\r]+/).filter(Boolean);
+      const ids = [];
+      for (const token of tokens) {
+        if (VIDEO_ID_REGEX.test(token)) {
+          ids.push(token);
+          continue;
+        }
+        try {
+          const url = new URL(token);
+          const vParam = url.searchParams.get('v');
+          if (vParam && VIDEO_ID_REGEX.test(vParam)) {
+            ids.push(vParam);
+            continue;
+          }
+          if (url.hostname === 'youtu.be') {
+            const seg = url.pathname.replace(/^\/+/, '').split('/')[0];
+            if (VIDEO_ID_REGEX.test(seg)) {
+              ids.push(seg);
+              continue;
+            }
+          }
+          const pathMatch = url.pathname.match(/\/(?:live|shorts|embed)\/([a-zA-Z0-9_-]{11})/);
+          if (pathMatch) {
+            ids.push(pathMatch[1]);
+          }
+        } catch (e) {}
+      }
+      return Array.from(new Set(ids));
+    }
+
+    /* ===== YouTube IFrame API 読み込み・プレイヤー制御 ===== */
+    (function loadYouTubeIframeAPI() {
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(tag);
+    })();
+
+    window.onYouTubeIframeAPIReady = function () {
+      ytApiReady = true;
+      pendingVideoLoads.forEach((videoId, slotIdx) => {
+        mountOrLoadPlayer(slotIdx, videoId);
+      });
+      pendingVideoLoads.clear();
+    };
+
+    function mountOrLoadPlayer(slotIdx, videoId) {
+      const slot = slots[slotIdx];
+      if (!ytApiReady) {
+        pendingVideoLoads.set(slotIdx, videoId);
+        return;
+      }
+
+      if (slot.player && slot.playerReady) {
+        slot.player.loadVideoById(videoId);
+        applySlotAudioState(slotIdx);
+        return;
+      }
+
+      const mountId = `player-mount-${slotIdx}`;
+      const mountEl = document.getElementById(mountId);
+      mountEl.innerHTML = '';
+      const targetDiv = document.createElement('div');
+      targetDiv.id = `yt-player-${slotIdx}`;
+      mountEl.appendChild(targetDiv);
+
+      slot.player = new YT.Player(targetDiv.id, {
+        videoId: videoId,
+        playerVars: {
+          autoplay: 1,
+          playsinline: 1,
+          rel: 0,
+          modestbranding: 1,
+          origin: location.origin
+        },
+        events: {
+          onReady: (event) => {
+            slot.playerReady = true;
+            event.target.setVolume(slot.volume);
+            if (slot.isMuted) {
+              event.target.mute();
+            } else {
+              event.target.unMute();
+            }
+            event.target.playVideo();
+          },
+          onStateChange: (event) => {
+            if (event.data === YT.PlayerState.PLAYING) {
+              try {
+                const data = event.target.getVideoData();
+                if (data && data.title && !slot.channelTitle) {
+                  slot.title = data.title;
+                  updateSlotHeader(slotIdx);
+                }
+              } catch (e) {}
+            }
+          }
+        }
+      });
+    }
+
+    function applySlotAudioState(slotIdx) {
+      const slot = slots[slotIdx];
+      const cardEl = document.getElementById(`slot-${slotIdx}`);
+      const soloBtn = cardEl.querySelector('.solo-btn');
+      const muteBtn = cardEl.querySelector('.mute-btn');
+      const slider = cardEl.querySelector('.vol-slider');
+
+      const isSolo = (soloSlotIndex === slotIdx && Boolean(slot.videoId));
+      cardEl.classList.toggle('is-solo', isSolo);
+      soloBtn.classList.toggle('is-active', isSolo);
+
+      muteBtn.textContent = slot.isMuted ? '🔇' : '🔊';
+      muteBtn.classList.toggle('is-unmuted', !slot.isMuted);
+      slider.value = String(slot.volume);
+
+      if (slot.player && slot.playerReady) {
+        try {
+          slot.player.setVolume(slot.volume);
+          if (slot.isMuted) {
+            slot.player.mute();
+          } else {
+            slot.player.unMute();
+          }
+        } catch (e) {}
+      }
+    }
+
+    function setSoloSlot(slotIdx) {
+      if (!slots[slotIdx].videoId) return;
+
+      if (soloSlotIndex === slotIdx) {
+        soloSlotIndex = null;
+        slots[slotIdx].isMuted = true;
+        applySlotAudioState(slotIdx);
+        return;
+      }
+
+      soloSlotIndex = slotIdx;
+      slots.forEach((s, idx) => {
+        s.isMuted = (idx !== slotIdx);
+        applySlotAudioState(idx);
+      });
+    }
+
+    function toggleSlotMute(slotIdx) {
+      const slot = slots[slotIdx];
+      if (!slot.videoId) return;
+
+      slot.isMuted = !slot.isMuted;
+      if (slot.isMuted && soloSlotIndex === slotIdx) {
+        soloSlotIndex = null;
+      } else if (!slot.isMuted) {
+        const unmutedCount = slots.filter(s => s.videoId && !s.isMuted).length;
+        soloSlotIndex = (unmutedCount === 1) ? slotIdx : null;
+      }
+      slots.forEach((_, idx) => applySlotAudioState(idx));
+    }
+
+    function setSlotVolume(slotIdx, vol) {
+      const slot = slots[slotIdx];
+      slot.volume = Math.max(0, Math.min(100, Number(vol) || 0));
+      if (slot.volume > 0 && slot.isMuted) {
+        slot.isMuted = false;
+      }
+      applySlotAudioState(slotIdx);
+    }
+
+    function muteAllSlots() {
+      soloSlotIndex = null;
+      slots.forEach((s, idx) => {
+        s.isMuted = true;
+        applySlotAudioState(idx);
+      });
+      showToast('全窓ミュートにしました');
+    }
+
+    function playAllSlots() {
+      slots.forEach(s => {
+        if (s.videoId && s.player && s.playerReady) {
+          try { s.player.playVideo(); } catch (e) {}
+        }
+      });
+    }
+
+    function pauseAllSlots() {
+      slots.forEach(s => {
+        if (s.videoId && s.player && s.playerReady) {
+          try { s.player.pauseVideo(); } catch (e) {}
+        }
+      });
+    }
+
+    /* ===== スロットへの動画セット・解除 ===== */
+    function updateSlotHeader(slotIdx) {
+      const slot = slots[slotIdx];
+      const labelEl = document.getElementById(`slot-label-${slotIdx}`);
+      if (!slot.videoId) {
+        labelEl.textContent = '空き枠';
+        labelEl.title = '';
+        return;
+      }
+      const text = slot.channelTitle
+        ? `${slot.channelTitle}${slot.title ? ' - ' + slot.title : ''}`
+        : (slot.title || slot.videoId);
+      labelEl.textContent = text;
+      labelEl.title = text;
+    }
+
+    function setSlotVideo(slotIdx, videoId, meta = {}) {
+      if (!VIDEO_ID_REGEX.test(videoId)) return;
+      const slot = slots[slotIdx];
+      const activeCountBefore = slots.filter(s => Boolean(s.videoId)).length;
+
+      slot.videoId = videoId;
+      slot.channelTitle = meta.channelTitle || '';
+      slot.title = meta.title || '';
+
+      if (activeCountBefore === 0) {
+        slot.isMuted = false;
+        soloSlotIndex = slotIdx;
+      } else if (soloSlotIndex !== slotIdx) {
+        slot.isMuted = true;
+      }
+
+      const cardEl = document.getElementById(`slot-${slotIdx}`);
+      cardEl.classList.remove('is-empty');
+      updateSlotHeader(slotIdx);
+      applySlotAudioState(slotIdx);
+      mountOrLoadPlayer(slotIdx, videoId);
+
+      refreshChatViews();
+      syncUrlState();
+    }
+
+    function clearSlot(slotIdx) {
+      const slot = slots[slotIdx];
+      pendingVideoLoads.delete(slotIdx);
+
+      if (slot.player && slot.playerReady) {
+        try { slot.player.stopVideo(); } catch (e) {}
+      }
+      if (slot.player && typeof slot.player.destroy === 'function') {
+        try { slot.player.destroy(); } catch (e) {}
+      }
+      slot.player = null;
+      slot.playerReady = false;
+      slot.videoId = null;
+      slot.title = '';
+      slot.channelTitle = '';
+      slot.isMuted = true;
+
+      if (soloSlotIndex === slotIdx) {
+        soloSlotIndex = null;
+      }
+
+      const mountEl = document.getElementById(`player-mount-${slotIdx}`);
+      mountEl.innerHTML = '';
+
+      const cardEl = document.getElementById(`slot-${slotIdx}`);
+      cardEl.classList.add('is-empty');
+      updateSlotHeader(slotIdx);
+      applySlotAudioState(slotIdx);
+
+      if (sidebarChatFrames.has(slotIdx)) {
+        sidebarChatFrames.get(slotIdx).remove();
+        sidebarChatFrames.delete(slotIdx);
+      }
+
+      refreshChatViews();
+      renderDrawer();
+      syncUrlState();
+    }
+
+    function clearAllSlots() {
+      for (let i = 0; i < MAX_SLOTS; i++) {
+        if (slots[i].videoId) clearSlot(i);
+      }
+      mainSlotIndex = 0;
+      applyLayoutVisibility();
+      showToast('全窓をクリアしました');
+    }
+
+    function toggleVideoInSlots(videoId, meta = {}) {
+      const existingIdx = slots.findIndex(s => s.videoId === videoId);
+      if (existingIdx !== -1) {
+        clearSlot(existingIdx);
+        return;
+      }
+
+      const emptyIdx = slots.findIndex(s => !s.videoId);
+      if (emptyIdx === -1) {
+        showToast('最大6枠までセット済みです');
+        return;
+      }
+
+      setSlotVideo(emptyIdx, videoId, meta);
+
+      const activeCount = slots.filter(s => Boolean(s.videoId)).length;
+      if (activeCount > (LAYOUT_CAPACITY[currentLayout] || 2)) {
+        setLayout(pickOptimalLayout(activeCount), false);
+      } else {
+        applyLayoutVisibility();
+      }
+
+      renderDrawer();
+    }
+
+    function addMultipleVideos(videoIds, replaceExisting = false) {
+      if (videoIds.length === 0) {
+        showToast('有効なYouTube URLまたは動画IDが見つかりません');
+        return;
+      }
+
+      if (replaceExisting) {
+        for (let i = 0; i < MAX_SLOTS; i++) {
+          if (slots[i].videoId) clearSlot(i);
+        }
+        mainSlotIndex = 0;
+      }
+
+      let added = 0;
+      for (const vid of videoIds) {
+        if (slots.some(s => s.videoId === vid)) continue;
+        const emptyIdx = slots.findIndex(s => !s.videoId);
+        if (emptyIdx === -1) break;
+        const foundLive = scheduleLives.find(item => item.videoId === vid);
+        setSlotVideo(emptyIdx, vid, foundLive ? {
+          channelTitle: foundLive.channelTitle,
+          title: foundLive.title
+        } : {});
+        added++;
+      }
+
+      const activeCount = slots.filter(s => Boolean(s.videoId)).length;
+      if (activeCount > 0) {
+        setLayout(pickOptimalLayout(activeCount), false);
+      }
+      renderDrawer();
+      if (added > 0) {
+        showToast(`${added}枠をセットしました`);
+      }
+    }
+
+    function openAllLiveStreams() {
+      const liveItems = scheduleLives.filter(item => item.status === 'live' && VIDEO_ID_REGEX.test(item.videoId));
+      if (liveItems.length === 0) {
+        showToast('現在配信中（LIVE）の枠がありません');
+        return;
+      }
+
+      for (let i = 0; i < MAX_SLOTS; i++) {
+        if (slots[i].videoId) clearSlot(i);
+      }
+      mainSlotIndex = 0;
+
+      const targets = liveItems.slice(0, MAX_SLOTS);
+      targets.forEach((item, idx) => {
+        setSlotVideo(idx, item.videoId, {
+          channelTitle: item.channelTitle,
+          title: item.title
+        });
+      });
+
+      setLayout(pickOptimalLayout(targets.length), false);
+      renderDrawer();
+      closeDrawer();
+      showToast(`配信中 ${targets.length}枠を一括展開しました`);
+    }
+
+    /* ===== レイアウト制御（DOM非破棄） ===== */
+    function pickOptimalLayout(count) {
+      if (count <= 2) return '2chat';
+      if (count <= 4) return '2x2';
+      return '3x2';
+    }
+
+    function applyLayoutVisibility() {
+      const cap = LAYOUT_CAPACITY[currentLayout] || 2;
+      if (mainSlotIndex >= cap) {
+        mainSlotIndex = 0;
+      }
+
+      slots.forEach((_, idx) => {
+        const cardEl = document.getElementById(`slot-${idx}`);
+        cardEl.classList.toggle('is-hidden-by-layout', idx >= cap);
+        cardEl.classList.toggle('is-main-slot', idx === mainSlotIndex);
+      });
+    }
+
+    function setLayout(layoutName, shouldSyncUrl = true) {
+      if (!LAYOUT_CAPACITY[layoutName]) return;
+      currentLayout = layoutName;
+
+      const stage = document.getElementById('stage-container');
+      stage.className = `stage-container layout-${layoutName}`;
+
+      document.querySelectorAll('.layout-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.layout === layoutName);
+      });
+
+      applyLayoutVisibility();
+      refreshChatViews();
+      if (shouldSyncUrl) syncUrlState();
+    }
+
+    function swapMainSlot(targetIdx) {
+      if (targetIdx < 0 || targetIdx >= MAX_SLOTS || !slots[targetIdx].videoId) return;
+      mainSlotIndex = targetIdx;
+      applyLayoutVisibility();
+      setSoloSlot(targetIdx);
+    }
+
+    /* ===== ライブチャット制御（本番ドメイン自動付与） ===== */
+    function buildChatEmbedUrl(videoId) {
+      const domain = location.hostname || 'localhost';
+      return `https://www.youtube.com/live_chat?v=${encodeURIComponent(videoId)}&embed_domain=${encodeURIComponent(domain)}&dark_theme=1`;
+    }
+
+    function refreshChatViews() {
+      // 1. 並列チャット（2chatレイアウト用：スロット0と1）
+      for (let i = 0; i < 2; i++) {
+        const slot = slots[i];
+        const titleEl = document.getElementById(`parallel-chat-title-${i}`);
+        const wrapEl = document.getElementById(`parallel-chat-wrap-${i}`);
+        titleEl.textContent = slot.videoId
+          ? `💬 #${i + 1} ${slot.channelTitle || slot.videoId}`
+          : `💬 #${i + 1} チャット`;
+
+        if (currentLayout !== '2chat') continue;
+
+        if (!slot.videoId) {
+          if (parallelChatVideoIds[i] !== null) {
+            wrapEl.innerHTML = `<div class="chat-empty-msg">#${i + 1} に配信をセットするとチャットが表示されます</div>`;
+            parallelChatVideoIds[i] = null;
+          }
+        } else if (parallelChatVideoIds[i] !== slot.videoId) {
+          wrapEl.innerHTML = '';
+          const iframe = document.createElement('iframe');
+          iframe.src = buildChatEmbedUrl(slot.videoId);
+          iframe.title = `#${i + 1} ライブチャット`;
+          wrapEl.appendChild(iframe);
+          parallelChatVideoIds[i] = slot.videoId;
+        }
+      }
+
+      // 2. 右サイドバーチャットタブ更新
+      const activeIndices = [];
+      slots.forEach((s, idx) => {
+        const tabBtn = document.querySelector(`.chat-tab[data-chat-slot="${idx}"]`);
+        const hasVid = Boolean(s.videoId);
+        tabBtn.disabled = !hasVid;
+        tabBtn.title = hasVid ? (s.channelTitle || s.title || s.videoId) : '未セット';
+        if (hasVid) activeIndices.push(idx);
+      });
+
+      if (activeIndices.length === 0) {
+        sidebarChatFrames.forEach(frame => frame.classList.remove('is-active'));
+        document.getElementById('sidebar-chat-empty').style.display = 'flex';
+        return;
+      }
+
+      document.getElementById('sidebar-chat-empty').style.display = 'none';
+      if (!slots[activeSidebarChatSlot].videoId) {
+        activeSidebarChatSlot = activeIndices[0];
+      }
+
+      selectSidebarChatTab(activeSidebarChatSlot);
+    }
+
+    function selectSidebarChatTab(slotIdx) {
+      const slot = slots[slotIdx];
+      if (!slot || !slot.videoId) return;
+      activeSidebarChatSlot = slotIdx;
+
+      document.querySelectorAll('.chat-tab').forEach(btn => {
+        btn.classList.toggle('active', Number(btn.dataset.chatSlot) === slotIdx);
+      });
+
+      const stackEl = document.getElementById('sidebar-chat-stack');
+      let frame = sidebarChatFrames.get(slotIdx);
+
+      if (!frame || frame.dataset.videoId !== slot.videoId) {
+        if (frame) frame.remove();
+        frame = document.createElement('iframe');
+        frame.className = 'sidebar-chat-frame';
+        frame.dataset.videoId = slot.videoId;
+        frame.src = buildChatEmbedUrl(slot.videoId);
+        frame.title = `#${slotIdx + 1} ライブチャット`;
+        stackEl.appendChild(frame);
+        sidebarChatFrames.set(slotIdx, frame);
+      }
+
+      sidebarChatFrames.forEach((f, idx) => {
+        f.classList.toggle('is-active', idx === slotIdx);
+      });
+    }
+
+    function toggleChatSidebar() {
+      if (currentLayout === '2chat') {
+        showToast('「2窓+チャット」レイアウトでは下段に並列表示されます');
+        return;
+      }
+      isChatSidebarOpen = !isChatSidebarOpen;
+      document.getElementById('chat-sidebar').classList.toggle('is-collapsed', !isChatSidebarOpen);
+      document.getElementById('btn-toggle-chat').classList.toggle('btn-primary', isChatSidebarOpen);
+    }
+
+    /* ===== 「推しスケ！」キャッシュ共有＆API連携 ===== */
+    function loadCachedSchedule() {
+      try {
+        const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (!raw) return false;
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.payload && Array.isArray(parsed.payload.lives)) {
+          applySchedulePayload(parsed.payload, `キャッシュ表示 (${parsed.payload.lastUpdated || '取得済'})`);
+          return true;
+        }
+      } catch (e) {}
+      return false;
+    }
+
+    async function fetchLatestSchedule() {
+      const statusEl = document.getElementById('drawer-sync-status');
+      statusEl.textContent = 'GAS APIから最新枠を取得中...';
+      try {
+        const res = await fetch(`${GAS_API_URL}?t=${Date.now()}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!data || !Array.isArray(data.lives)) throw new Error('Invalid payload');
+
+        applySchedulePayload(data, `同期完了 (${data.lastUpdated || '最新'})`);
+        try {
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({
+            schemaVersion: 9,
+            savedAtMs: Date.now(),
+            payload: data
+          }));
+        } catch (e) {}
+      } catch (err) {
+        statusEl.textContent = `最新取得失敗（キャッシュ表示中）: ${err.message}`;
+      }
+    }
+
+    function applySchedulePayload(payload, statusLabel) {
+      scheduleLives = Array.isArray(payload.lives) ? payload.lives : [];
+      tagMeta = Array.isArray(payload.tagMeta) ? payload.tagMeta : [];
+      document.getElementById('drawer-sync-status').textContent = statusLabel;
+
+      const liveCount = scheduleLives.filter(item => item.status === 'live').length;
+      document.getElementById('live-count-badge').textContent = `(${liveCount})`;
+
+      slots.forEach((slot, idx) => {
+        if (!slot.videoId) return;
+        const found = scheduleLives.find(item => item.videoId === slot.videoId);
+        if (found) {
+          slot.channelTitle = found.channelTitle || slot.channelTitle;
+          slot.title = found.title || slot.title;
+          updateSlotHeader(idx);
+        }
+      });
+
+      refreshChatViews();
+      renderDrawer();
+    }
+
+    function renderDrawer() {
+      const filterRow = document.getElementById('drawer-tag-filters');
+      const mainTags = tagMeta.filter(m => m.group === 'main').map(m => m.name);
+
+      const chipsHtml = [
+        `<button class="chip ${drawerSelectedTag === 'ALL' ? 'active' : ''}" type="button" data-d-tag="ALL">すべて</button>`,
+        `<button class="chip live-chip ${drawerOnlyLive ? 'active' : ''}" type="button" data-d-live="1">🔴 LIVEのみ</button>`,
+        ...mainTags.map(t => `<button class="chip ${drawerSelectedTag === t ? 'active' : ''}" type="button" data-d-tag="${escapeHtml(t)}">${escapeHtml(t)}</button>`)
+      ];
+      filterRow.innerHTML = chipsHtml.join('');
+
+      const filtered = scheduleLives.filter(item => {
+        if (drawerOnlyLive && item.status !== 'live') return false;
+        if (drawerSelectedTag !== 'ALL') {
+          const tags = String(item.tags || '').split(/[,、]/).map(s => s.trim());
+          if (!tags.includes(drawerSelectedTag)) return false;
+        }
+        return true;
+      });
+
+      const lives = filtered.filter(i => i.status === 'live').sort((a, b) => a.startTimeMs - b.startTimeMs);
+      const upcomings = filtered.filter(i => i.status !== 'live').sort((a, b) => a.startTimeMs - b.startTimeMs);
+
+      const bodyEl = document.getElementById('drawer-body');
+      bodyEl.innerHTML = '';
+
+      if (filtered.length === 0) {
+        bodyEl.innerHTML = `<div style="padding:24px; text-align:center; color:var(--text-sub); font-size:0.82rem;">該当する配信枠はありません。上の入力欄からURLまたは動画IDを直接追加することもできます。</div>`;
+        return;
+      }
+
+      if (lives.length > 0) {
+        bodyEl.appendChild(buildDrawerSection(`🔴 現在配信中 (${lives.length}件)`, lives));
+      }
+      if (upcomings.length > 0) {
+        bodyEl.appendChild(buildDrawerSection(`🕒 配信予定 (${upcomings.length}件)`, upcomings));
+      }
+    }
+
+    function buildDrawerSection(heading, items) {
+      const sec = document.createElement('div');
+      sec.innerHTML = `<div class="drawer-sec-title">${escapeHtml(heading)}</div>`;
+      const grid = document.createElement('div');
+      grid.className = 'drawer-grid';
+
+      items.forEach(item => {
+        const assignedIdx = slots.findIndex(s => s.videoId === item.videoId);
+        const isSelected = assignedIdx !== -1;
+        const isLive = item.status === 'live';
+
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = `d-card ${isLive ? 'is-live' : ''} ${isSelected ? 'is-selected' : ''}`.trim();
+        card.dataset.videoId = item.videoId;
+
+        const thumbUrl = sanitizeThumbUrl(item.thumbnail, item.videoId);
+        const statusBadge = isLive
+          ? `<span class="d-badge live">LIVE</span>`
+          : `<span class="d-badge upcoming">${escapeHtml(item.displayTime || '予定')}</span>`;
+        const memberBadge = item.isMember ? `<span class="d-badge member">メン限</span>` : '';
+        const slotBadge = isSelected ? `<span class="d-slot-badge">セット中 #${assignedIdx + 1}</span>` : '';
+
+        card.innerHTML = `
+          <div class="d-thumb">
+            <img src="${escapeHtml(thumbUrl)}" alt="" loading="lazy">
+            <div class="d-badges">${statusBadge}${memberBadge}</div>
+            ${slotBadge}
+          </div>
+          <div class="d-info">
+            <div class="d-ch">${escapeHtml(item.channelTitle)}</div>
+            <div class="d-title">${escapeHtml(item.title)}</div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+
+      sec.appendChild(grid);
+      return sec;
+    }
+
+    function openDrawer() {
+      isDrawerOpen = true;
+      document.getElementById('schedule-drawer').classList.add('is-open');
+      document.getElementById('drawer-backdrop').classList.add('is-open');
+      document.getElementById('btn-toggle-drawer').classList.add('is-active');
+      renderDrawer();
+    }
+
+    function closeDrawer() {
+      isDrawerOpen = false;
+      document.getElementById('schedule-drawer').classList.remove('is-open');
+      document.getElementById('drawer-backdrop').classList.remove('is-open');
+      document.getElementById('btn-toggle-drawer').classList.remove('is-active');
+    }
+
+    /* ===== URLパラメータ同期＆共有 ===== */
+    function syncUrlState() {
+      const activeIds = slots.map(s => s.videoId).filter(Boolean);
+      const url = new URL(location.href);
+      if (activeIds.length > 0) {
+        url.searchParams.set('v', activeIds.join(','));
+        url.searchParams.set('layout', currentLayout);
+      } else {
+        url.searchParams.delete('v');
+        url.searchParams.delete('layout');
+      }
+      history.replaceState(null, '', url.pathname + url.search);
+    }
+
+    async function copyShareUrl() {
+      syncUrlState();
+      try {
+        await navigator.clipboard.writeText(location.href);
+        showToast('現在の複窓URLをクリップボードにコピーしました');
+      } catch (e) {
+        showToast('URLのコピーに失敗しました');
+      }
+    }
+
+    function toggleImmersiveMode(force) {
+      const next = typeof force === 'boolean' ? force : !document.body.classList.contains('is-immersive');
+      document.body.classList.toggle('is-immersive', next);
+    }
+
+    /* ===== イベントバインド ===== */
+    function setupEvents() {
+      document.getElementById('btn-toggle-drawer').addEventListener('click', () => {
+        isDrawerOpen ? closeDrawer() : openDrawer();
+      });
+      document.getElementById('btn-close-drawer').addEventListener('click', closeDrawer);
+      document.getElementById('drawer-backdrop').addEventListener('click', closeDrawer);
+      document.getElementById('btn-refresh-api').addEventListener('click', fetchLatestSchedule);
+      document.getElementById('btn-clear-all-slots').addEventListener('click', clearAllSlots);
+      document.getElementById('btn-open-all-live').addEventListener('click', openAllLiveStreams);
+
+      document.getElementById('btn-mute-all').addEventListener('click', muteAllSlots);
+      document.getElementById('btn-play-all').addEventListener('click', playAllSlots);
+      document.getElementById('btn-pause-all').addEventListener('click', pauseAllSlots);
+      document.getElementById('btn-toggle-chat').addEventListener('click', toggleChatSidebar);
+      document.getElementById('btn-copy-url').addEventListener('click', copyShareUrl);
+      document.getElementById('btn-immersive').addEventListener('click', () => toggleImmersiveMode(true));
+      document.getElementById('btn-exit-immersive').addEventListener('click', () => toggleImmersiveMode(false));
+
+      document.querySelectorAll('.layout-btn').forEach(btn => {
+        btn.addEventListener('click', () => setLayout(btn.dataset.layout));
+      });
+
+      // 手動URL/ID追加
+      document.getElementById('btn-manual-add').addEventListener('click', () => {
+        const input = document.getElementById('manual-url-input');
+        const ids = extractVideoIds(input.value);
+        addMultipleVideos(ids, false);
+        if (ids.length > 0) input.value = '';
+      });
+
+      document.getElementById('btn-manual-replace').addEventListener('click', () => {
+        const input = document.getElementById('manual-url-input');
+        const ids = extractVideoIds(input.value);
+        addMultipleVideos(ids, true);
+        if (ids.length > 0) input.value = '';
+      });
+
+      document.getElementById('manual-url-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          document.getElementById('btn-manual-add').click();
+        }
+      });
+
+      // ドロワー内のタグ＆カード操作
+      document.getElementById('drawer-tag-filters').addEventListener('click', (e) => {
+        const tagBtn = e.target.closest('[data-d-tag]');
+        if (tagBtn) {
+          drawerSelectedTag = tagBtn.dataset.dTag;
+          renderDrawer();
+          return;
+        }
+        const liveBtn = e.target.closest('[data-d-live]');
+        if (liveBtn) {
+          drawerOnlyLive = !drawerOnlyLive;
+          renderDrawer();
+        }
+      });
+
+      document.getElementById('drawer-body').addEventListener('click', (e) => {
+        const card = e.target.closest('.d-card[data-video-id]');
+        if (!card) return;
+        const vid = card.dataset.videoId;
+        const item = scheduleLives.find(i => i.videoId === vid);
+        toggleVideoInSlots(vid, item ? {
+          channelTitle: item.channelTitle,
+          title: item.title
+        } : {});
+      });
+
+      // スロット操作（イベント委譲）
+      document.getElementById('stage-container').addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-action]');
+        if (!btn) return;
+        const action = btn.dataset.action;
+        const slotIdx = Number(btn.dataset.slot);
+
+        if (action === 'screenshot') captureSlotScreenshot(slotIdx);
+        else if (action === 'open-watch') openSlotWatchPage(slotIdx);
+        else if (action === 'solo') setSoloSlot(slotIdx);
+        else if (action === 'mute') toggleSlotMute(slotIdx);
+        else if (action === 'swap-main') swapMainSlot(slotIdx);
+        else if (action === 'clear') clearSlot(slotIdx);
+        else if (action === 'open-drawer') openDrawer();
+      });
+
+      document.getElementById('stage-container').addEventListener('input', (e) => {
+        if (e.target.classList.contains('vol-slider')) {
+          setSlotVolume(Number(e.target.dataset.slot), e.target.value);
+        }
+      });
+
+      // サイドバーチャットタブ切替
+      document.getElementById('chat-tabs-bar').addEventListener('click', (e) => {
+        const tab = e.target.closest('.chat-tab[data-chat-slot]');
+        if (tab && !tab.disabled) {
+          selectSidebarChatTab(Number(tab.dataset.chatSlot));
+        }
+      });
+
+      // キーボードショートカット
+      document.addEventListener('keydown', (e) => {
+        const tag = document.activeElement ? document.activeElement.tagName : '';
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+        if (e.key === 'Escape' && isDrawerOpen) {
+          closeDrawer();
+          return;
+        }
+        if (e.key >= '1' && e.key <= '6') {
+          setSoloSlot(Number(e.key) - 1);
+          return;
+        }
+        const k = e.key.toLowerCase();
+        if (k === 'm') muteAllSlots();
+        else if (k === 'c') toggleChatSidebar();
+        else if (k === 'd') isDrawerOpen ? closeDrawer() : openDrawer();
+        else if (k === 'f') toggleImmersiveMode();
+      });
+    }
+
+    /* ===== 初期化 ===== */
+    (function init() {
+      setupEvents();
+      document.getElementById('btn-toggle-chat').classList.add('btn-primary');
+
+      loadCachedSchedule();
+      fetchLatestSchedule();
+
+      // URLパラメータ復元 (?v=ID1,ID2&layout=2chat)
+      const params = new URLSearchParams(location.search);
+      const initialLayout = params.get('layout');
+      const vParam = params.get('v');
+
+      if (vParam) {
+        const ids = extractVideoIds(vParam).slice(0, MAX_SLOTS);
+        ids.forEach((vid, idx) => {
+          const found = scheduleLives.find(item => item.videoId === vid);
+          setSlotVideo(idx, vid, found ? {
+            channelTitle: found.channelTitle,
+            title: found.title
+          } : {});
+        });
+        if (initialLayout && LAYOUT_CAPACITY[initialLayout]) {
+          setLayout(initialLayout, false);
+        } else if (ids.length > 0) {
+          setLayout(pickOptimalLayout(ids.length), false);
+        } else {
+          setLayout('2chat', false);
+        }
+      } else {
+        setLayout('2chat', false);
+      }
+    })();
+  </script>
+</body>
+</html>
