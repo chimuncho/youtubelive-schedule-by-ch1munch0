@@ -1,0 +1,2321 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>推しスケ！</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2224%22 fill=%22%23ff0033%22/><polygon points=%2238,28 74,50 38,72%22 fill=%22%23ffffff%22/><circle cx=%2278%22 cy=%2222%22 r=%2210%22 fill=%22%23ffd60a%22/></svg>">
+  <style>
+    :root {
+      --bg-color: #131316;
+      --header-bg: #131316;
+      --section-bg: #161619;
+      --section-live-bg: #1a1214;
+      --card-bg: #1e1e22;
+      --card-hover: #28282d;
+      --text-main: #f5f5f7;
+      --text-sub: #a1a1a6;
+      --live-red: #ff0033;
+      --live-glow: rgba(255, 0, 51, 0.28);
+      --upcoming-blue: #3ea6ff;
+      --member-green: #2ba640;
+      --tag-main-accent: #a78bfa;
+      --tag-sub-accent: #38bdf8;
+      --warn-amber: #fbbf24;
+      --border-subtle: #2c2c30;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      overflow-y: scroll;
+      scrollbar-gutter: stable;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", Meiryo, sans-serif;
+      line-height: 1.38;
+      padding-bottom: 40px;
+    }
+
+    button:focus-visible,
+    input:focus-visible,
+    .card:focus-visible,
+    .ch-card:focus-visible {
+      outline: 2px solid var(--upcoming-blue);
+      outline-offset: 2px;
+    }
+
+    /* ヘッダー＋ツールバーをまとめて画面上部に固定 */
+    .sticky-chrome {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background-color: var(--header-bg);
+    }
+
+    header {
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 10px 16px;
+    }
+
+    .header-inner {
+      max-width: 1440px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px 14px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .header-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      letter-spacing: 0.02em;
+      flex-shrink: 0;
+    }
+
+    .header-title span.dot {
+      display: inline-block;
+      width: 9px;
+      height: 9px;
+      background-color: var(--live-red);
+      border-radius: 50%;
+    }
+
+    .view-tabs {
+      display: inline-flex;
+      background-color: var(--section-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .view-tab-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: transparent;
+      color: var(--text-sub);
+      border: none;
+      border-radius: 6px;
+      padding: 4px 11px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .view-tab-btn:hover {
+      color: var(--text-main);
+    }
+
+    .view-tab-btn.active {
+      background-color: var(--card-hover);
+      color: var(--text-main);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+    }
+
+    .tab-badge {
+      font-size: 0.67rem;
+      font-weight: 700;
+      padding: 0 6px;
+      border-radius: 999px;
+      background-color: rgba(255, 255, 255, 0.08);
+      color: var(--text-sub);
+      line-height: 1.45;
+    }
+
+    .view-tab-btn.active .tab-badge {
+      background-color: rgba(62, 166, 255, 0.2);
+      color: var(--upcoming-blue);
+    }
+
+    .multiview-link-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background-color: var(--card-bg);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-size: 0.76rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .multiview-link-btn:hover {
+      background-color: var(--card-hover);
+      border-color: rgba(62, 166, 255, 0.5);
+      color: var(--upcoming-blue);
+    }
+
+    /* スマホ画面・縦長比率では非表示 */
+    @media (max-width: 767px), (orientation: portrait) and (max-width: 1024px) {
+      .multiview-link-btn {
+        display: none !important;
+      }
+    }
+
+    .meta-info {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 0.76rem;
+      color: var(--text-sub);
+      margin-left: auto;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      font-weight: 600;
+    }
+
+    .status-pill.is-warn {
+      background-color: rgba(251, 191, 36, 0.15);
+      color: var(--warn-amber);
+      border: 1px solid rgba(251, 191, 36, 0.4);
+    }
+
+    .status-pill.is-error {
+      background-color: rgba(255, 0, 51, 0.16);
+      color: #ff6b81;
+      border: 1px solid rgba(255, 0, 51, 0.45);
+    }
+
+    .reload-btn {
+      background-color: var(--card-bg);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 0.76rem;
+      cursor: pointer;
+      transition: background-color 0.15s, opacity 0.15s;
+      flex-shrink: 0;
+    }
+
+    .reload-btn:hover:not(:disabled) {
+      background-color: var(--card-hover);
+    }
+
+    .reload-btn:disabled {
+      opacity: 0.55;
+      cursor: wait;
+    }
+
+    /* 固定ツールバー行（件数・絞り込みプルダウン・検索・ソート） */
+    .toolbar-bar {
+      background-color: var(--header-bg);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 8px 16px;
+    }
+
+    .toolbar-inner {
+      max-width: 1440px;
+      margin: 0 auto;
+      position: relative;
+    }
+
+    .status-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .count-bar {
+      font-size: 0.8rem;
+      color: var(--text-sub);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .count-live {
+      color: #ff4d6d;
+      font-weight: 600;
+    }
+
+    .toolbar-right {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-left: auto;
+    }
+
+    .search-input-wrap {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .search-input {
+      background-color: var(--section-bg);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      border-radius: 7px;
+      padding: 4px 26px 4px 10px;
+      font-size: 0.76rem;
+      width: 175px;
+      transition: border-color 0.15s, width 0.15s;
+    }
+
+    .search-input::placeholder {
+      color: var(--text-sub);
+      opacity: 0.75;
+    }
+
+    .search-input:focus {
+      border-color: var(--upcoming-blue);
+    }
+
+    .search-clear-btn {
+      position: absolute;
+      right: 6px;
+      background: none;
+      border: none;
+      color: var(--text-sub);
+      font-size: 0.85rem;
+      cursor: pointer;
+      padding: 0 3px;
+      line-height: 1;
+      display: none;
+    }
+
+    .search-clear-btn.is-visible {
+      display: block;
+    }
+
+    /* 全画面幅で表示する絞り込みプルダウンボタン */
+    .filter-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background-color: var(--card-bg);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      border-radius: 7px;
+      padding: 4px 10px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      max-width: 240px;
+      transition: all 0.15s;
+    }
+
+    .filter-toggle-btn:hover {
+      background-color: var(--card-hover);
+      border-color: #3f3f46;
+    }
+
+    .filter-toggle-btn.has-filter {
+      background-color: rgba(62, 166, 255, 0.16);
+      border-color: rgba(62, 166, 255, 0.5);
+      color: var(--upcoming-blue);
+    }
+
+    .filter-toggle-text {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .filter-chevron {
+      font-size: 0.65rem;
+      transition: transform 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .filter-toggle-btn.is-open .filter-chevron {
+      transform: rotate(180deg);
+    }
+
+    .reset-link {
+      font-size: 0.74rem;
+      color: var(--upcoming-blue);
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .sort-toggle {
+      display: inline-flex;
+      background-color: var(--section-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 7px;
+      padding: 2px;
+    }
+
+    .sort-btn {
+      background: transparent;
+      color: var(--text-sub);
+      border: none;
+      border-radius: 5px;
+      padding: 3px 8px;
+      font-size: 0.73rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .sort-btn.active {
+      background-color: var(--card-hover);
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    /* プルダウン展開時の絞り込みパネル（全画面幅共通・フローティング表示） */
+    .filter-panel {
+      position: absolute;
+      top: calc(100% + 10px);
+      left: 0;
+      right: 0;
+      z-index: 120;
+      background-color: #19191d;
+      border: 1px solid #38383f;
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.72);
+      max-height: calc(100vh - 125px);
+      overflow-y: auto;
+    }
+
+    .filter-panel.is-collapsed {
+      display: none !important;
+    }
+
+    .filter-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 7px;
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 0.75rem;
+      color: var(--text-sub);
+    }
+
+    .filter-panel-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .filter-close-btn {
+      background-color: var(--card-bg);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      border-radius: 5px;
+      padding: 2px 9px;
+      font-size: 0.72rem;
+      cursor: pointer;
+      transition: background-color 0.15s;
+    }
+
+    .filter-close-btn:hover {
+      background-color: var(--card-hover);
+    }
+
+    .filter-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .filter-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-sub);
+      min-width: 62px;
+      padding-top: 4px;
+      flex-shrink: 0;
+    }
+
+    .filter-label.is-main-label {
+      color: var(--tag-main-accent);
+    }
+
+    .filter-label.is-sub-label {
+      color: var(--tag-sub-accent);
+    }
+
+    .chip-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      flex: 1;
+    }
+
+    .chip {
+      background-color: var(--card-bg);
+      color: var(--text-sub);
+      border: 1px solid var(--border-subtle);
+      border-radius: 999px;
+      padding: 3px 10px;
+      font-size: 0.74rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+
+    .chip:hover {
+      background-color: var(--card-hover);
+      color: var(--text-main);
+    }
+
+    .chip.active {
+      background-color: var(--upcoming-blue);
+      color: #000;
+      border-color: var(--upcoming-blue);
+      font-weight: 700;
+    }
+
+    .chip.main-tag-chip.active {
+      background-color: var(--tag-main-accent);
+      color: #000;
+      border-color: var(--tag-main-accent);
+    }
+
+    .chip.sub-tag-chip.active {
+      background-color: var(--tag-sub-accent);
+      color: #000;
+      border-color: var(--tag-sub-accent);
+    }
+
+    .chip.more-chip {
+      background-color: transparent;
+      border-style: dashed;
+      border-color: #52525b;
+      color: var(--text-sub);
+      font-size: 0.71rem;
+    }
+
+    main {
+      max-width: 1440px;
+      margin: 14px auto 0;
+      padding: 0 14px;
+    }
+
+    .section-box {
+      background-color: var(--section-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+    }
+
+    .section-box.ch-section {
+      min-height: 200px;
+      background-color: #161619;
+    }
+
+    .section-box.live-section {
+      background-color: var(--section-live-bg);
+      border: 1px solid rgba(255, 0, 51, 0.4);
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .live-section .section-header {
+      border-bottom-color: rgba(255, 0, 51, 0.25);
+    }
+
+    .section-title {
+      font-size: 0.94rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .main-tag-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--tag-main-accent);
+      flex-shrink: 0;
+    }
+
+    .live-dot-pulse {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background-color: var(--live-red);
+      border-radius: 50%;
+      animation: pulse 1.4s infinite;
+      flex-shrink: 0;
+    }
+
+    .day-tag {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 1px 7px;
+      border-radius: 999px;
+      background-color: rgba(62, 166, 255, 0.16);
+      color: var(--upcoming-blue);
+      border: 1px solid rgba(62, 166, 255, 0.35);
+    }
+
+    .day-tag.is-today {
+      background-color: rgba(52, 199, 89, 0.16);
+      color: #4cd964;
+      border-color: rgba(52, 199, 89, 0.35);
+    }
+
+    .section-count {
+      font-size: 0.75rem;
+      color: var(--text-sub);
+      background-color: rgba(255, 255, 255, 0.06);
+      padding: 1px 8px;
+      border-radius: 999px;
+      flex-shrink: 0;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    @media (min-width: 640px) {
+      .grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+      }
+    }
+
+    @media (min-width: 960px) {
+      .grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+
+    @media (min-width: 1280px) {
+      .grid {
+        grid-template-columns: repeat(5, 1fr);
+      }
+    }
+
+    .card {
+      display: flex;
+      flex-direction: column;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 9px;
+      overflow: hidden;
+      text-decoration: none;
+      color: inherit;
+      transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .card:hover {
+      background-color: var(--card-hover);
+      transform: translateY(-2px);
+    }
+
+    .card.is-member:not(.is-live) {
+      border-color: rgba(43, 166, 64, 0.55);
+    }
+
+    .card.is-live {
+      border: 2px solid var(--live-red);
+      box-shadow: 0 0 10px var(--live-glow);
+    }
+
+    .card.is-soon {
+      border: 1.5px solid rgba(251, 191, 36, 0.75);
+      box-shadow: 0 0 10px rgba(251, 191, 36, 0.16);
+    }
+
+    .thumb-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background-color: #000;
+      overflow: hidden;
+    }
+
+    .thumb-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .badge-group {
+      position: absolute;
+      bottom: 6px;
+      left: 6px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .badge {
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.65);
+    }
+
+    .badge-live {
+      background-color: var(--live-red);
+      color: #fff;
+    }
+
+    .badge-live::before {
+      content: "";
+      display: inline-block;
+      width: 5px;
+      height: 5px;
+      background-color: #fff;
+      border-radius: 50%;
+      animation: pulse 1.4s infinite;
+    }
+
+    .badge-upcoming {
+      background-color: rgba(15, 15, 15, 0.88);
+      color: var(--upcoming-blue);
+      border: 1px solid rgba(62, 166, 255, 0.4);
+    }
+
+    .badge-member {
+      background-color: rgba(15, 15, 15, 0.9);
+      color: #4ade80;
+      border: 1px solid rgba(43, 166, 64, 0.65);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.25; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .live-dot-pulse,
+      .badge-live::before {
+        animation: none;
+      }
+      .card,
+      .ch-card {
+        transition: none;
+      }
+    }
+
+    .card-body {
+      padding: 8px 10px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+    }
+
+    .schedule-time {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      font-size: 0.86rem;
+      font-weight: 700;
+      color: var(--upcoming-blue);
+    }
+
+    .schedule-time-text {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .card.is-member .schedule-time {
+      color: #4ade80;
+    }
+
+    .card.is-soon .schedule-time {
+      color: #fbbf24;
+    }
+
+    .card.is-live .schedule-time {
+      color: #ff4d6d;
+    }
+
+    .new-badge {
+      flex-shrink: 0;
+      font-size: 0.65rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      color: #ffffff;
+      background-color: var(--live-red);
+      padding: 1px 6px;
+      border-radius: 4px;
+      line-height: 1.35;
+      box-shadow: 0 1px 4px rgba(255, 0, 51, 0.45);
+    }
+
+    .video-title {
+      font-size: 0.76rem;
+      font-weight: 500;
+      color: var(--text-main);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .card-footer {
+      margin-top: auto;
+      padding-top: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .channel-name {
+      font-size: 0.74rem;
+      color: var(--text-sub);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-tags {
+      display: flex;
+      gap: 3px;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+
+    .mini-tag {
+      font-size: 0.64rem;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background-color: rgba(167, 139, 250, 0.15);
+      color: var(--tag-main-accent);
+      border: 1px solid rgba(167, 139, 250, 0.3);
+    }
+
+    .mini-tag.is-sub {
+      background-color: rgba(56, 189, 248, 0.13);
+      color: var(--tag-sub-accent);
+      border: 1px solid rgba(56, 189, 248, 0.28);
+    }
+
+    .ch-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    @media (min-width: 560px) {
+      .ch-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+      }
+    }
+
+    @media (min-width: 900px) {
+      .ch-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    @media (min-width: 1240px) {
+      .ch-grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+
+    .ch-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 11px;
+      padding: 12px 13px;
+      text-decoration: none;
+      color: inherit;
+      transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+      min-width: 0;
+    }
+
+    .ch-card:hover {
+      background-color: var(--card-hover);
+      transform: translateY(-2px);
+    }
+
+    .ch-card.is-live-now {
+      border-color: rgba(255, 0, 51, 0.65);
+      box-shadow: 0 0 10px rgba(255, 0, 51, 0.16);
+    }
+
+    .ch-avatar-wrap {
+      position: relative;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background-color: #242428;
+      border: 1px solid #2c2c30;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--text-sub);
+    }
+
+    .ch-card.is-live-now .ch-avatar-wrap {
+      border-color: var(--live-red);
+    }
+
+    .ch-avatar-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+      display: block;
+    }
+
+    .ch-live-pill {
+      position: absolute;
+      bottom: -4px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: var(--live-red);
+      color: #ffffff;
+      font-size: 0.58rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      padding: 1px 5px;
+      border-radius: 4px;
+      line-height: 1.25;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.75);
+      white-space: nowrap;
+    }
+
+    .ch-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .ch-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ch-meta-line {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 4px 8px;
+      font-size: 0.73rem;
+      color: var(--text-sub);
+    }
+
+    .ch-latest-date {
+      color: #8e8e95;
+      font-size: 0.7rem;
+    }
+
+    .ch-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 2px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--text-sub);
+      background-color: var(--section-bg);
+      border-radius: 12px;
+      border: 1px solid var(--border-subtle);
+      font-size: 0.9rem;
+    }
+
+    .error-box {
+      padding: 14px;
+      background-color: #2c1518;
+      border: 1px solid var(--live-red);
+      border-radius: 10px;
+      color: #ff8095;
+      font-size: 0.82rem;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="sticky-chrome">
+    <header>
+      <div class="header-inner">
+        <div class="header-left">
+          <div class="header-title">
+            <span class="dot"></span>
+            <span>推しスケ！</span>
+          </div>
+          <nav class="view-tabs" aria-label="表示切り替え">
+            <button class="view-tab-btn active" id="tab-schedule" type="button" data-view="schedule">
+              <span>配信スケジュール</span>
+              <span class="tab-badge" id="tab-badge-schedule">0</span>
+            </button>
+            <button class="view-tab-btn" id="tab-channels" type="button" data-view="channels">
+              <span>チャンネル一覧</span>
+              <span class="tab-badge" id="tab-badge-channels">0</span>
+            </button>
+          </nav>
+          <a class="multiview-link-btn" href="./oshimado.html" title="複窓プレイヤー「推しマド！」を開く">
+            <span>⊞ 推しマド！</span>
+          </a>
+        </div>
+        <div class="meta-info">
+          <span id="status-badges"></span>
+          <span id="last-updated">更新: --/-- --:--</span>
+          <button id="reload-btn" class="reload-btn" type="button">再読込</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="toolbar-bar">
+      <div class="toolbar-inner">
+        <div class="status-toolbar">
+          <div class="toolbar-left">
+            <div class="count-bar" id="count-bar"></div>
+            <button class="filter-toggle-btn" id="filter-toggle-btn" type="button" aria-expanded="false" aria-controls="filter-panel" style="display:none;">
+              <span class="filter-toggle-text" id="filter-toggle-text">絞り込み</span>
+              <span class="filter-chevron">▼</span>
+            </button>
+          </div>
+          <div class="toolbar-right">
+            <div class="search-input-wrap" id="ch-search-wrap" style="display:none;">
+              <input class="search-input" id="ch-search-input" type="search" placeholder="チャンネル名・タグ検索" aria-label="チャンネル検索">
+              <button class="search-clear-btn" id="ch-search-clear" type="button" aria-label="検索をクリア">×</button>
+            </div>
+
+            <div class="sort-toggle" id="schedule-sort-toggle">
+              <button class="sort-btn active" id="sort-time" type="button" data-sort="time">開始時間順</button>
+              <button class="sort-btn" id="sort-channel" type="button" data-sort="channel">チャンネル別</button>
+            </div>
+
+            <div class="sort-toggle" id="channel-sort-toggle" style="display:none;">
+              <button class="sort-btn active" id="ch-sort-tag" type="button" data-ch-sort="tag">タグ別</button>
+              <button class="sort-btn" id="ch-sort-subs" type="button" data-ch-sort="subs">登録者数順</button>
+              <button class="sort-btn" id="ch-sort-latest" type="button" data-ch-sort="latest">動画更新日順</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-panel is-collapsed" id="filter-panel" style="display:none;">
+          <div class="filter-panel-header">
+            <span id="filter-panel-title">表示するタグ・チャンネルを選択</span>
+            <div class="filter-panel-actions">
+              <button class="filter-close-btn" id="filter-close-btn" type="button">閉じる</button>
+            </div>
+          </div>
+          <div class="filter-row" id="main-tag-filter-row" style="display:none;">
+            <div class="filter-label is-main-label">メイン</div>
+            <div class="chip-group" id="main-tag-chips"></div>
+          </div>
+          <div class="filter-row" id="sub-tag-filter-row" style="display:none;">
+            <div class="filter-label is-sub-label">サブ</div>
+            <div class="chip-group" id="sub-tag-chips"></div>
+          </div>
+          <div class="filter-row" id="channel-filter-row">
+            <div class="filter-label">チャンネル</div>
+            <div class="chip-group" id="channel-chips"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <div id="content">
+      <div class="empty-state">データを読み込み中...</div>
+    </div>
+  </main>
+
+  <script>
+    const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzKEjdp1EPCZ_8jCAvaGfTdOA9kCVBnau0XdnR9-uuj7kYlAbqp-jRQrAouMQnUSqPs/exec';
+    const LOCAL_STORAGE_KEY = 'yt_live_schedule_cache_v9';
+    const FETCH_TIMEOUT_MS = 15000;
+    const AUTO_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+    const STALE_THRESHOLD_MS = 30 * 60 * 1000;
+    const TRIGGER_STALL_THRESHOLD_MS = 45 * 60 * 1000;
+
+    const ALLOWED_IMAGE_HOSTS = new Set([
+      'i.ytimg.com',
+      'i1.ytimg.com',
+      'i2.ytimg.com',
+      'i3.ytimg.com',
+      'i4.ytimg.com',
+      'img.youtube.com',
+      'yt3.ggpht.com',
+      'yt3.googleusercontent.com'
+    ]);
+
+    const ALLOWED_CHANNEL_HOSTS = new Set([
+      'www.youtube.com',
+      'youtube.com',
+      'm.youtube.com'
+    ]);
+
+    let currentPayload = {
+      lives: [],
+      channels: [],
+      lastUpdated: '未更新',
+      lastUpdatedMs: 0,
+      lastAttemptedMs: 0,
+      updateStatus: 'success',
+      errorSummary: '',
+      tagOrder: [],
+      tagMeta: []
+    };
+    let hasRenderedData = false;
+    let savedAtMs = 0;
+    let lastSuccessfulFetchAt = 0;
+    let lastFetchError = '';
+    let isFetching = false;
+    let autoRefreshTimerId = null;
+
+    let activeView = (location.hash === '#channels') ? 'channels' : 'schedule';
+    let isFilterOpen = false;
+
+    // 配信スケジュール用状態
+    let selectedMainTag = 'ALL';
+    let selectedSubTag = 'ALL';
+    let selectedChannel = 'ALL';
+    let sortMode = 'time';
+
+    // チャンネル一覧用状態
+    let selectedDirMainTag = 'ALL';
+    let selectedDirSubTag = 'ALL';
+    let dirSearchQuery = '';
+    let dirSortMode = 'tag';
+
+    // 折りたたみ展開状態
+    let expandMainTags = false;
+    let expandSubTags = false;
+
+    function getJstDateLabels() {
+      const now = new Date();
+      const jstNow = new Date(now.getTime() + (9 * 60 * 60 * 1000) + (now.getTimezoneOffset() * 1000 * 60));
+      const jstTomorrow = new Date(jstNow.getTime() + 24 * 60 * 60 * 1000);
+      const fmt = (d) => `${d.getMonth() + 1}/${d.getDate()}`;
+      return {
+        today: fmt(jstNow),
+        tomorrow: fmt(jstTomorrow)
+      };
+    }
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function sanitizeImageUrl(rawUrl, videoId) {
+      const fallback = videoId ? `https://i.ytimg.com/vi/${encodeURIComponent(videoId)}/hqdefault.jpg` : '';
+      if (!rawUrl) return fallback;
+      try {
+        const parsed = new URL(String(rawUrl));
+        if (parsed.protocol === 'https:' && ALLOWED_IMAGE_HOSTS.has(parsed.hostname.toLowerCase())) {
+          return parsed.href;
+        }
+      } catch (e) {}
+      return fallback;
+    }
+
+    function sanitizeChannelUrl(rawUrl, channelId) {
+      const fallback = channelId
+        ? `https://www.youtube.com/channel/${encodeURIComponent(channelId)}`
+        : 'https://www.youtube.com/';
+      if (!rawUrl) return fallback;
+      try {
+        const parsed = new URL(String(rawUrl));
+        if (parsed.protocol === 'https:' && ALLOWED_CHANNEL_HOSTS.has(parsed.hostname.toLowerCase())) {
+          return parsed.href;
+        }
+      } catch (e) {}
+      return fallback;
+    }
+
+    function parseTags(tagsStr) {
+      if (!tagsStr) return [];
+      return String(tagsStr)
+        .split(/[,、]/)
+        .map(t => t.trim())
+        .filter(t => t.length > 0);
+    }
+
+    function getNormalizedTagMeta() {
+      if (Array.isArray(currentPayload.tagMeta) && currentPayload.tagMeta.length > 0) {
+        return currentPayload.tagMeta;
+      }
+      const order = Array.isArray(currentPayload.tagOrder) ? currentPayload.tagOrder : [];
+      return order.map(name => ({
+        name: name,
+        group: 'sub',
+        count: 4,
+        visibility: 'auto',
+        isFolded: false
+      }));
+    }
+
+    function getTagGroupMap() {
+      const map = new Map();
+      getNormalizedTagMeta().forEach(m => {
+        map.set(m.name, m.group === 'main' ? 'main' : 'sub');
+      });
+      return map;
+    }
+
+    function renderMiniTagsHtml(tagsStr) {
+      const itemTags = parseTags(tagsStr);
+      if (itemTags.length === 0) return '';
+      const groupMap = getTagGroupMap();
+      const sorted = [...itemTags].sort((a, b) => {
+        const ga = groupMap.get(a) === 'main' ? 0 : 1;
+        const gb = groupMap.get(b) === 'main' ? 0 : 1;
+        return ga - gb;
+      });
+      return sorted.map(t => {
+        const isSub = groupMap.get(t) !== 'main';
+        return `<span class="mini-tag ${isSub ? 'is-sub' : ''}">${escapeHtml(t)}</span>`;
+      }).join('');
+    }
+
+    function formatSubscriberCount(count) {
+      if (count === null || count === undefined || count === '' || isNaN(Number(count))) {
+        return '登録者数非公開';
+      }
+      const num = Number(count);
+      if (num >= 10000) {
+        const man = (num / 10000).toFixed(num >= 100000 ? 1 : 2).replace(/\.?0+$/, '');
+        return `登録者 ${man}万人`;
+      }
+      return `登録者 ${num.toLocaleString('ja-JP')}人`;
+    }
+
+    function updateStatusBadges() {
+      const badgesEl = document.getElementById('status-badges');
+      if (!badgesEl) return;
+
+      const pills = [];
+      const now = Date.now();
+
+      if (lastFetchError) {
+        pills.push(`<span class="status-pill is-error" title="${escapeHtml(lastFetchError)}">⚠ 通信失敗（前回表示中）</span>`);
+      }
+
+      if (currentPayload.updateStatus === 'failed') {
+        pills.push(`<span class="status-pill is-error" title="${escapeHtml(currentPayload.errorSummary)}">⚠ API取得失敗</span>`);
+      } else if (currentPayload.updateStatus === 'partial') {
+        pills.push(`<span class="status-pill is-warn" title="${escapeHtml(currentPayload.errorSummary)}">⚠ 一部取得エラー</span>`);
+      }
+
+      const backendStale = currentPayload.lastUpdatedMs > 0 && (now - currentPayload.lastUpdatedMs > STALE_THRESHOLD_MS);
+      const localStale = savedAtMs > 0 && (now - savedAtMs > STALE_THRESHOLD_MS);
+      if (backendStale || localStale) {
+        pills.push(`<span class="status-pill is-warn">⚠ 古いデータ表示中</span>`);
+      }
+
+      if (currentPayload.lastAttemptedMs > 0 && (now - currentPayload.lastAttemptedMs > TRIGGER_STALL_THRESHOLD_MS)) {
+        pills.push(`<span class="status-pill is-warn">⚠ 定期更新停止の疑い</span>`);
+      }
+
+      badgesEl.innerHTML = pills.join('');
+    }
+
+    function switchView(view) {
+      if (view !== 'schedule' && view !== 'channels') return;
+      activeView = view;
+
+      const nextHash = view === 'channels' ? '#channels' : '';
+      if (nextHash) {
+        history.replaceState(null, '', nextHash);
+      } else if (location.hash) {
+        history.replaceState(null, '', location.pathname + location.search);
+      }
+
+      render();
+    }
+
+    function toggleFilterPanel(forceState) {
+      isFilterOpen = (typeof forceState === 'boolean') ? forceState : !isFilterOpen;
+      const panel = document.getElementById('filter-panel');
+      const btn = document.getElementById('filter-toggle-btn');
+      panel.classList.toggle('is-collapsed', !isFilterOpen);
+      btn.classList.toggle('is-open', isFilterOpen);
+      btn.setAttribute('aria-expanded', String(isFilterOpen));
+    }
+
+    // 選択済みタグを再クリックした場合は 'ALL' に戻すトグル挙動
+    function selectMainTag(tag) {
+      if (activeView === 'channels') {
+        selectedDirMainTag = (selectedDirMainTag === tag) ? 'ALL' : tag;
+      } else {
+        selectedMainTag = (selectedMainTag === tag) ? 'ALL' : tag;
+        selectedChannel = 'ALL';
+      }
+      render();
+    }
+
+    function selectSubTag(tag) {
+      if (activeView === 'channels') {
+        selectedDirSubTag = (selectedDirSubTag === tag) ? 'ALL' : tag;
+      } else {
+        selectedSubTag = (selectedSubTag === tag) ? 'ALL' : tag;
+        selectedChannel = 'ALL';
+      }
+      render();
+    }
+
+    function selectChannel(channel) {
+      selectedChannel = (selectedChannel === channel) ? 'ALL' : channel;
+      render();
+    }
+
+    function resetFilters() {
+      if (activeView === 'channels') {
+        selectedDirMainTag = 'ALL';
+        selectedDirSubTag = 'ALL';
+        dirSearchQuery = '';
+        const searchInput = document.getElementById('ch-search-input');
+        const clearBtn = document.getElementById('ch-search-clear');
+        if (searchInput) searchInput.value = '';
+        if (clearBtn) clearBtn.classList.remove('is-visible');
+      } else {
+        selectedMainTag = 'ALL';
+        selectedSubTag = 'ALL';
+        selectedChannel = 'ALL';
+      }
+      render();
+    }
+
+    function setSortMode(mode) {
+      sortMode = mode;
+      document.getElementById('sort-time').classList.toggle('active', mode === 'time');
+      document.getElementById('sort-channel').classList.toggle('active', mode === 'channel');
+      render();
+    }
+
+    function setDirSortMode(mode) {
+      dirSortMode = mode;
+      document.getElementById('ch-sort-tag').classList.toggle('active', mode === 'tag');
+      document.getElementById('ch-sort-subs').classList.toggle('active', mode === 'subs');
+      document.getElementById('ch-sort-latest').classList.toggle('active', mode === 'latest');
+      render();
+    }
+
+    function buildChipButton(label, value, dataKey, isActive, extraClass) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `chip ${extraClass || ''} ${isActive ? 'active' : ''}`.trim();
+      btn.textContent = label;
+      btn.setAttribute('aria-pressed', String(Boolean(isActive)));
+      btn.dataset[dataKey] = value;
+      return btn;
+    }
+
+    function populateTagRow(rowEl, chipsEl, metaItems, selectedVal, dataKey, extraClass, isExpanded, onToggleExpand) {
+      chipsEl.innerHTML = '';
+      if (metaItems.length === 0) {
+        rowEl.style.display = 'none';
+        return;
+      }
+
+      rowEl.style.display = 'flex';
+      chipsEl.appendChild(buildChipButton('すべて', 'ALL', dataKey, selectedVal === 'ALL', extraClass));
+
+      const visibleItems = [];
+      const foldedItems = [];
+      metaItems.forEach(item => {
+        if (item.isFolded && item.name !== selectedVal) {
+          foldedItems.push(item);
+        } else {
+          visibleItems.push(item);
+        }
+      });
+
+      visibleItems.forEach(item => {
+        chipsEl.appendChild(buildChipButton(item.name, item.name, dataKey, selectedVal === item.name, extraClass));
+      });
+
+      if (foldedItems.length > 0) {
+        if (isExpanded) {
+          foldedItems.forEach(item => {
+            chipsEl.appendChild(buildChipButton(item.name, item.name, dataKey, selectedVal === item.name, extraClass));
+          });
+        }
+        const moreBtn = document.createElement('button');
+        moreBtn.type = 'button';
+        moreBtn.className = 'chip more-chip';
+        moreBtn.textContent = isExpanded ? '閉じる' : `さらに表示 (+${foldedItems.length})`;
+        moreBtn.addEventListener('click', onToggleExpand);
+        chipsEl.appendChild(moreBtn);
+      }
+    }
+
+    function sortChronologically(items) {
+      return [...items].sort((a, b) => {
+        if (a.status !== b.status) {
+          return a.status === 'live' ? -1 : 1;
+        }
+        return a.startTimeMs - b.startTimeMs;
+      });
+    }
+
+    function createCardElement(item, timeOnlyForUpcoming) {
+      const nowMs = Date.now();
+      const isLive = item.status === 'live';
+      const isMember = Boolean(item.isMember);
+      const diffToStartMs = (item.startTimeMs > 0) ? (item.startTimeMs - nowMs) : Infinity;
+      const isStartingSoon = !isLive && item.startTimeMs > 0 && diffToStartMs > 0 && diffToStartMs <= 30 * 60 * 1000;
+      const isMemberStarted = isMember && !isLive && item.startTimeMs > 0 && item.startTimeMs <= nowMs;
+      const isNewItem = (typeof item.seenCount === 'number') && item.seenCount >= 1 && item.seenCount <= 4;
+
+      const card = document.createElement('a');
+      card.className = `card ${isLive ? 'is-live' : ''} ${isStartingSoon ? 'is-soon' : ''} ${isMember ? 'is-member' : ''}`.trim();
+      card.href = `https://www.youtube.com/watch?v=${encodeURIComponent(item.videoId || '')}`;
+      card.target = '_blank';
+      card.rel = 'noopener noreferrer';
+
+      const statusBadge = isLive
+        ? `<span class="badge badge-live">LIVE</span>`
+        : `<span class="badge badge-upcoming">配信予定</span>`;
+      const memberBadge = isMember
+        ? `<span class="badge badge-member">${isMemberStarted ? 'メン限・開始済？' : 'メン限'}</span>`
+        : '';
+
+      const displayTimeStr = String(item.displayTime || '');
+      const baseTimeText = (timeOnlyForUpcoming && displayTimeStr.includes(' '))
+        ? displayTimeStr.split(' ')[1]
+        : displayTimeStr;
+
+      let timeLabel = '';
+      if (isLive) {
+        timeLabel = `${displayTimeStr} 開始`;
+      } else if (isStartingSoon) {
+        timeLabel = `${baseTimeText} まもなく配信開始`;
+      } else if (isMemberStarted) {
+        timeLabel = `${baseTimeText} 開始予定（経過）`;
+      } else {
+        timeLabel = `${baseTimeText} 開始予定`;
+      }
+
+      const newBadgeHtml = isNewItem ? `<span class="new-badge">New</span>` : '';
+      const safeThumb = sanitizeImageUrl(item.thumbnail, item.videoId);
+      const miniTagsInner = renderMiniTagsHtml(item.tags);
+      const tagsHtml = miniTagsInner ? `<div class="card-tags">${miniTagsInner}</div>` : '';
+
+      card.innerHTML = `
+        <div class="thumb-wrap">
+          <img src="${escapeHtml(safeThumb)}" alt="" loading="lazy">
+          <div class="badge-group">
+            ${statusBadge}
+            ${memberBadge}
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="schedule-time">
+            <span class="schedule-time-text">${escapeHtml(timeLabel)}</span>
+            ${newBadgeHtml}
+          </div>
+          <div class="video-title">${escapeHtml(item.title)}</div>
+          <div class="card-footer">
+            <div class="channel-name">${escapeHtml(item.channelTitle)}</div>
+            ${tagsHtml}
+          </div>
+        </div>
+      `;
+
+      return card;
+    }
+
+    function createChannelCardElement(ch, isLiveNow) {
+      const card = document.createElement('a');
+      card.className = `ch-card ${isLiveNow ? 'is-live-now' : ''}`.trim();
+      card.href = sanitizeChannelUrl(ch.channelUrl, ch.channelId);
+      card.target = '_blank';
+      card.rel = 'noopener noreferrer';
+
+      const safeIcon = sanitizeImageUrl(ch.iconUrl, '');
+      const initialChar = String(ch.channelTitle || '?').trim().charAt(0) || '?';
+      const avatarHtml = safeIcon
+        ? `<img src="${escapeHtml(safeIcon)}" alt="" width="56" height="56" decoding="async" referrerpolicy="no-referrer" onerror="this.remove();">`
+        : `<span>${escapeHtml(initialChar)}</span>`;
+
+      const liveBadgeHtml = isLiveNow ? `<span class="ch-live-pill">LIVE</span>` : '';
+      const subText = formatSubscriberCount(ch.subscriberCount);
+      const latestHtml = ch.latestVideoDate
+        ? `<span class="ch-latest-date">最新投稿: ${escapeHtml(ch.latestVideoDate)}</span>`
+        : '';
+      const miniTagsInner = renderMiniTagsHtml(ch.tags);
+      const tagsHtml = miniTagsInner ? `<div class="ch-tags">${miniTagsInner}</div>` : '';
+
+      card.innerHTML = `
+        <div class="ch-avatar-wrap">
+          ${avatarHtml}
+          ${liveBadgeHtml}
+        </div>
+        <div class="ch-info">
+          <div class="ch-title" title="${escapeHtml(ch.channelTitle)}">${escapeHtml(ch.channelTitle)}</div>
+          <div class="ch-meta-line">
+            <span>${escapeHtml(subText)}</span>
+            ${latestHtml}
+          </div>
+          ${tagsHtml}
+        </div>
+      `;
+
+      return card;
+    }
+
+    /**
+     * メインタグリストは全アイテムから、サブタグリストは「選択中メインタグを含むアイテム」から動的に構築
+     */
+    function buildAvailableTagLists(items, activeMainTag) {
+      const allPresentSet = new Set();
+      items.forEach(item => {
+        parseTags(item.tags).forEach(t => allPresentSet.add(t));
+      });
+
+      const subScopeItems = (activeMainTag && activeMainTag !== 'ALL')
+        ? items.filter(item => parseTags(item.tags).includes(activeMainTag))
+        : items;
+
+      const subPresentSet = new Set();
+      subScopeItems.forEach(item => {
+        parseTags(item.tags).forEach(t => subPresentSet.add(t));
+      });
+
+      const meta = getNormalizedTagMeta();
+      const metaMap = new Map(meta.map(m => [m.name, m]));
+      const mainList = [];
+      const subList = [];
+
+      meta.forEach(m => {
+        if (m.group === 'main') {
+          if (allPresentSet.has(m.name)) mainList.push(m);
+        } else {
+          if (subPresentSet.has(m.name)) subList.push(m);
+        }
+      });
+
+      subPresentSet.forEach(t => {
+        if (!metaMap.has(t)) {
+          subList.push({ name: t, group: 'sub', count: 1, visibility: 'auto', isFolded: false });
+        }
+      });
+
+      return { mainList, subList, allPresentSet, subPresentSet };
+    }
+
+    function renderScheduleFilterControls(allLives) {
+      const filterPanel = document.getElementById('filter-panel');
+      const toggleBtn = document.getElementById('filter-toggle-btn');
+      const toggleText = document.getElementById('filter-toggle-text');
+      const channelRow = document.getElementById('channel-filter-row');
+      const panelTitle = document.getElementById('filter-panel-title');
+
+      panelTitle.textContent = '表示するタグ・チャンネルを選択';
+
+      if (allLives.length === 0) {
+        filterPanel.style.display = 'none';
+        toggleBtn.style.display = 'none';
+        return;
+      }
+
+      filterPanel.style.display = 'flex';
+      toggleBtn.style.display = 'inline-flex';
+      channelRow.style.display = 'flex';
+
+      let { mainList, subList, allPresentSet, subPresentSet } = buildAvailableTagLists(allLives, selectedMainTag);
+
+      if (selectedMainTag !== 'ALL' && !allPresentSet.has(selectedMainTag)) {
+        selectedMainTag = 'ALL';
+        ({ mainList, subList, subPresentSet } = buildAvailableTagLists(allLives, 'ALL'));
+      }
+      if (selectedSubTag !== 'ALL' && !subPresentSet.has(selectedSubTag)) {
+        selectedSubTag = 'ALL';
+      }
+
+      populateTagRow(
+        document.getElementById('main-tag-filter-row'),
+        document.getElementById('main-tag-chips'),
+        mainList,
+        selectedMainTag,
+        'mainTag',
+        'main-tag-chip',
+        expandMainTags,
+        () => { expandMainTags = !expandMainTags; render(); }
+      );
+
+      populateTagRow(
+        document.getElementById('sub-tag-filter-row'),
+        document.getElementById('sub-tag-chips'),
+        subList,
+        selectedSubTag,
+        'subTag',
+        'sub-tag-chip',
+        expandSubTags,
+        () => { expandSubTags = !expandSubTags; render(); }
+      );
+
+      const livesForChannelList = allLives.filter(item => {
+        const tags = parseTags(item.tags);
+        if (selectedMainTag !== 'ALL' && !tags.includes(selectedMainTag)) return false;
+        if (selectedSubTag !== 'ALL' && !tags.includes(selectedSubTag)) return false;
+        return true;
+      });
+
+      const channelOrderMap = new Map();
+      livesForChannelList.forEach(item => {
+        const chLabel = item.filterName || item.channelTitle;
+        if (!chLabel) return;
+        const order = (typeof item.sortOrder === 'number') ? item.sortOrder : 9999;
+        if (!channelOrderMap.has(chLabel) || order < channelOrderMap.get(chLabel)) {
+          channelOrderMap.set(chLabel, order);
+        }
+      });
+      const channelsList = Array.from(channelOrderMap.keys()).sort((a, b) => {
+        return channelOrderMap.get(a) - channelOrderMap.get(b);
+      });
+
+      if (selectedChannel !== 'ALL' && !channelOrderMap.has(selectedChannel)) {
+        selectedChannel = 'ALL';
+      }
+
+      const channelChipsEl = document.getElementById('channel-chips');
+      channelChipsEl.innerHTML = '';
+      channelChipsEl.appendChild(buildChipButton('すべて', 'ALL', 'channel', selectedChannel === 'ALL', ''));
+      channelsList.forEach(ch => {
+        channelChipsEl.appendChild(buildChipButton(ch, ch, 'channel', selectedChannel === ch, ''));
+      });
+
+      const activeLabels = [];
+      if (selectedMainTag !== 'ALL') activeLabels.push(selectedMainTag);
+      if (selectedSubTag !== 'ALL') activeLabels.push(selectedSubTag);
+      if (selectedChannel !== 'ALL') activeLabels.push(selectedChannel);
+
+      if (activeLabels.length > 0) {
+        toggleBtn.classList.add('has-filter');
+        toggleText.textContent = activeLabels.join(' / ');
+      } else {
+        toggleBtn.classList.remove('has-filter');
+        toggleText.textContent = '絞り込み';
+      }
+    }
+
+    function renderChannelFilterControls(allChannels) {
+      const filterPanel = document.getElementById('filter-panel');
+      const toggleBtn = document.getElementById('filter-toggle-btn');
+      const toggleText = document.getElementById('filter-toggle-text');
+      const channelRow = document.getElementById('channel-filter-row');
+      const panelTitle = document.getElementById('filter-panel-title');
+
+      panelTitle.textContent = '表示するタグを選択';
+      channelRow.style.display = 'none';
+
+      let { mainList, subList, allPresentSet, subPresentSet } = buildAvailableTagLists(allChannels, selectedDirMainTag);
+
+      if (selectedDirMainTag !== 'ALL' && !allPresentSet.has(selectedDirMainTag)) {
+        selectedDirMainTag = 'ALL';
+        ({ mainList, subList, subPresentSet } = buildAvailableTagLists(allChannels, 'ALL'));
+      }
+      if (selectedDirSubTag !== 'ALL' && !subPresentSet.has(selectedDirSubTag)) {
+        selectedDirSubTag = 'ALL';
+      }
+
+      if (allChannels.length === 0 || (mainList.length === 0 && subList.length === 0)) {
+        filterPanel.style.display = 'none';
+        toggleBtn.style.display = 'none';
+        return;
+      }
+
+      filterPanel.style.display = 'flex';
+      toggleBtn.style.display = 'inline-flex';
+
+      populateTagRow(
+        document.getElementById('main-tag-filter-row'),
+        document.getElementById('main-tag-chips'),
+        mainList,
+        selectedDirMainTag,
+        'mainTag',
+        'main-tag-chip',
+        expandMainTags,
+        () => { expandMainTags = !expandMainTags; render(); }
+      );
+
+      populateTagRow(
+        document.getElementById('sub-tag-filter-row'),
+        document.getElementById('sub-tag-chips'),
+        subList,
+        selectedDirSubTag,
+        'subTag',
+        'sub-tag-chip',
+        expandSubTags,
+        () => { expandSubTags = !expandSubTags; render(); }
+      );
+
+      const activeLabels = [];
+      if (selectedDirMainTag !== 'ALL') activeLabels.push(selectedDirMainTag);
+      if (selectedDirSubTag !== 'ALL') activeLabels.push(selectedDirSubTag);
+
+      if (activeLabels.length > 0) {
+        toggleBtn.classList.add('has-filter');
+        toggleText.textContent = activeLabels.join(' / ');
+      } else {
+        toggleBtn.classList.remove('has-filter');
+        toggleText.textContent = '絞り込み';
+      }
+    }
+
+    function renderScheduleView(allLives) {
+      renderScheduleFilterControls(allLives);
+
+      const filteredLives = allLives.filter(item => {
+        const tags = parseTags(item.tags);
+        if (selectedMainTag !== 'ALL' && !tags.includes(selectedMainTag)) {
+          return false;
+        }
+        if (selectedSubTag !== 'ALL' && !tags.includes(selectedSubTag)) {
+          return false;
+        }
+        const chLabel = item.filterName || item.channelTitle;
+        if (selectedChannel !== 'ALL' && chLabel !== selectedChannel) {
+          return false;
+        }
+        return true;
+      });
+
+      const liveItems = sortChronologically(filteredLives.filter(item => item.status === 'live'));
+      const upcomingItems = sortChronologically(filteredLives.filter(item => item.status === 'upcoming'));
+
+      const isFiltered = (selectedMainTag !== 'ALL' || selectedSubTag !== 'ALL' || selectedChannel !== 'ALL');
+      const resetBtnHtml = isFiltered
+        ? `<button class="reset-link" type="button" data-action="reset">解除</button>`
+        : '';
+
+      document.getElementById('count-bar').innerHTML = `
+        <span class="count-live">● 配信中: ${liveItems.length}件</span>
+        <span>予定: ${upcomingItems.length}件</span>
+        ${resetBtnHtml}
+      `;
+
+      const contentEl = document.getElementById('content');
+      contentEl.innerHTML = '';
+
+      if (filteredLives.length === 0) {
+        contentEl.innerHTML = `
+          <div class="empty-state">
+            ${allLives.length === 0
+              ? '現在、配信中または配信予定のライブ枠はありません。'
+              : '選択中の条件に一致する配信枠はありません。'}
+          </div>
+        `;
+        return;
+      }
+
+      if (sortMode === 'channel') {
+        const groupedByChannel = new Map();
+        const channelOrderMap = new Map();
+
+        filteredLives.forEach(item => {
+          const chKey = item.filterName || item.channelTitle || '不明';
+          if (!groupedByChannel.has(chKey)) {
+            groupedByChannel.set(chKey, []);
+          }
+          groupedByChannel.get(chKey).push(item);
+
+          const order = (typeof item.sortOrder === 'number') ? item.sortOrder : 9999;
+          if (!channelOrderMap.has(chKey) || order < channelOrderMap.get(chKey)) {
+            channelOrderMap.set(chKey, order);
+          }
+        });
+
+        const sortedChannelKeys = Array.from(groupedByChannel.keys()).sort((a, b) => {
+          return channelOrderMap.get(a) - channelOrderMap.get(b);
+        });
+
+        sortedChannelKeys.forEach(chName => {
+          const itemsInChannel = sortChronologically(groupedByChannel.get(chName));
+          const hasLive = itemsInChannel.some(item => item.status === 'live');
+
+          const chSection = document.createElement('section');
+          chSection.className = `section-box ${hasLive ? 'live-section' : ''}`;
+          chSection.innerHTML = `
+            <div class="section-header">
+              <div class="section-title">
+                ${hasLive ? '<span class="live-dot-pulse"></span>' : ''}
+                <span>${escapeHtml(chName)}</span>
+              </div>
+              <span class="section-count">${itemsInChannel.length}件</span>
+            </div>
+          `;
+
+          const chGrid = document.createElement('div');
+          chGrid.className = 'grid';
+          itemsInChannel.forEach(item => {
+            chGrid.appendChild(createCardElement(item, false));
+          });
+
+          chSection.appendChild(chGrid);
+          contentEl.appendChild(chSection);
+        });
+
+        return;
+      }
+
+      if (liveItems.length > 0) {
+        const liveSection = document.createElement('section');
+        liveSection.className = 'section-box live-section';
+        liveSection.innerHTML = `
+          <div class="section-header">
+            <div class="section-title">
+              <span class="live-dot-pulse"></span>
+              <span>現在配信中</span>
+            </div>
+            <span class="section-count">${liveItems.length}件</span>
+          </div>
+        `;
+
+        const liveGrid = document.createElement('div');
+        liveGrid.className = 'grid';
+        liveItems.forEach(item => {
+          liveGrid.appendChild(createCardElement(item, false));
+        });
+
+        liveSection.appendChild(liveGrid);
+        contentEl.appendChild(liveSection);
+      }
+
+      if (upcomingItems.length > 0) {
+        const dateLabels = getJstDateLabels();
+        const groupedByDate = new Map();
+
+        upcomingItems.forEach(item => {
+          const displayTimeStr = String(item.displayTime || '');
+          const datePart = displayTimeStr ? displayTimeStr.split(' ')[0] : '日時未定';
+          if (!groupedByDate.has(datePart)) {
+            groupedByDate.set(datePart, []);
+          }
+          groupedByDate.get(datePart).push(item);
+        });
+
+        groupedByDate.forEach((itemsInDate, dateStr) => {
+          const sortedDateItems = sortChronologically(itemsInDate);
+          const mdOnly = dateStr.split('(')[0];
+          let relativeTag = '';
+          if (mdOnly === dateLabels.today) {
+            relativeTag = `<span class="day-tag is-today">今日</span>`;
+          } else if (mdOnly === dateLabels.tomorrow) {
+            relativeTag = `<span class="day-tag">明日</span>`;
+          }
+
+          const dateSection = document.createElement('section');
+          dateSection.className = 'section-box';
+          dateSection.innerHTML = `
+            <div class="section-header">
+              <div class="section-title">
+                <span>${escapeHtml(dateStr)} の配信予定</span>
+                ${relativeTag}
+              </div>
+              <span class="section-count">${sortedDateItems.length}件</span>
+            </div>
+          `;
+
+          const dateGrid = document.createElement('div');
+          dateGrid.className = 'grid';
+          sortedDateItems.forEach(item => {
+            dateGrid.appendChild(createCardElement(item, true));
+          });
+
+          dateSection.appendChild(dateGrid);
+          contentEl.appendChild(dateSection);
+        });
+      }
+    }
+
+    function compareByOrder(a, b) {
+      return (a.sortOrder || 9999) - (b.sortOrder || 9999);
+    }
+
+    function compareBySubs(a, b) {
+      const sa = (typeof a.subscriberCount === 'number') ? a.subscriberCount : -1;
+      const sb = (typeof b.subscriberCount === 'number') ? b.subscriberCount : -1;
+      if (sb !== sa) return sb - sa;
+      return compareByOrder(a, b);
+    }
+
+    function renderChannelsView(allChannels, allLives) {
+      renderChannelFilterControls(allChannels);
+
+      const liveChannelIds = new Set();
+      allLives.forEach(item => {
+        if (item.status === 'live' && item.channelId) {
+          liveChannelIds.add(String(item.channelId).trim());
+        }
+      });
+
+      const q = dirSearchQuery.trim().toLowerCase();
+      const filteredChannels = allChannels.filter(ch => {
+        const tags = parseTags(ch.tags);
+        if (selectedDirMainTag !== 'ALL' && !tags.includes(selectedDirMainTag)) {
+          return false;
+        }
+        if (selectedDirSubTag !== 'ALL' && !tags.includes(selectedDirSubTag)) {
+          return false;
+        }
+        if (q) {
+          const titleHit = String(ch.channelTitle || '').toLowerCase().includes(q);
+          const tagHit = String(ch.tags || '').toLowerCase().includes(q);
+          if (!titleHit && !tagHit) return false;
+        }
+        return true;
+      });
+
+      const isFiltered = (selectedDirMainTag !== 'ALL' || selectedDirSubTag !== 'ALL' || q.length > 0);
+      const resetBtnHtml = isFiltered
+        ? `<button class="reset-link" type="button" data-action="reset">解除</button>`
+        : '';
+
+      const countLabel = isFiltered
+        ? `表示中: ${filteredChannels.length} / ${allChannels.length}チャンネル`
+        : `登録チャンネル: ${allChannels.length}件`;
+
+      document.getElementById('count-bar').innerHTML = `
+        <span>${countLabel}</span>
+        ${resetBtnHtml}
+      `;
+
+      const contentEl = document.getElementById('content');
+      contentEl.innerHTML = '';
+
+      if (filteredChannels.length === 0) {
+        contentEl.innerHTML = `
+          <div class="empty-state">
+            ${allChannels.length === 0
+              ? '登録されているチャンネルはまだありません。<br>YouTubeのチャンネルページでブックマークレットを実行すると追加できます。'
+              : '選択中の条件に一致するチャンネルはありません。'}
+          </div>
+        `;
+        return;
+      }
+
+      // 1. タグ別ビュー（メインタグのみでセクション分け・枠内はチャンネルディレクトリ登録順）
+      if (dirSortMode === 'tag') {
+        const mainMetaList = getNormalizedTagMeta().filter(m => m.group === 'main');
+        const mainTagNames = mainMetaList.map(m => m.name);
+        const mainTagSet = new Set(mainTagNames);
+
+        const targetMainTags = (selectedDirMainTag !== 'ALL')
+          ? [selectedDirMainTag]
+          : mainTagNames;
+
+        targetMainTags.forEach(tagName => {
+          const matched = filteredChannels
+            .filter(ch => parseTags(ch.tags).includes(tagName))
+            .sort(compareByOrder);
+          if (matched.length === 0) return;
+
+          const tagSection = document.createElement('section');
+          tagSection.className = 'section-box';
+          tagSection.innerHTML = `
+            <div class="section-header">
+              <div class="section-title">
+                <span class="main-tag-dot"></span>
+                <span>${escapeHtml(tagName)}</span>
+              </div>
+              <span class="section-count">${matched.length}件</span>
+            </div>
+          `;
+
+          const grid = document.createElement('div');
+          grid.className = 'ch-grid';
+          matched.forEach(ch => {
+            const isLiveNow = liveChannelIds.has(String(ch.channelId || '').trim());
+            grid.appendChild(createChannelCardElement(ch, isLiveNow));
+          });
+
+          tagSection.appendChild(grid);
+          contentEl.appendChild(tagSection);
+        });
+
+        // メインタグを持たないチャンネルの受け皿
+        if (selectedDirMainTag === 'ALL') {
+          const uncategorized = filteredChannels
+            .filter(ch => !parseTags(ch.tags).some(t => mainTagSet.has(t)))
+            .sort(compareByOrder);
+
+          if (uncategorized.length > 0) {
+            const otherSection = document.createElement('section');
+            otherSection.className = 'section-box';
+            otherSection.innerHTML = `
+              <div class="section-header">
+                <div class="section-title">
+                  <span>その他（メインタグ未設定）</span>
+                </div>
+                <span class="section-count">${uncategorized.length}件</span>
+              </div>
+            `;
+
+            const grid = document.createElement('div');
+            grid.className = 'ch-grid';
+            uncategorized.forEach(ch => {
+              const isLiveNow = liveChannelIds.has(String(ch.channelId || '').trim());
+              grid.appendChild(createChannelCardElement(ch, isLiveNow));
+            });
+
+            otherSection.appendChild(grid);
+            contentEl.appendChild(otherSection);
+          }
+        }
+        return;
+      }
+
+      // 2. 登録者数順 / 3. 動画更新日順
+      const sortedChannels = [...filteredChannels].sort((a, b) => {
+        if (dirSortMode === 'latest') {
+          const la = (typeof a.latestVideoMs === 'number' && a.latestVideoMs > 0) ? a.latestVideoMs : -1;
+          const lb = (typeof b.latestVideoMs === 'number' && b.latestVideoMs > 0) ? b.latestVideoMs : -1;
+          if (lb !== la) return lb - la;
+          return compareBySubs(a, b);
+        }
+        return compareBySubs(a, b);
+      });
+
+      const section = document.createElement('section');
+      section.className = 'section-box ch-section';
+      const grid = document.createElement('div');
+      grid.className = 'ch-grid';
+
+      sortedChannels.forEach(ch => {
+        const isLiveNow = liveChannelIds.has(String(ch.channelId || '').trim());
+        grid.appendChild(createChannelCardElement(ch, isLiveNow));
+      });
+
+      section.appendChild(grid);
+      contentEl.appendChild(section);
+    }
+
+    function render(newPayload) {
+      if (newPayload) {
+        currentPayload = Object.assign({
+          lives: [],
+          channels: [],
+          lastUpdated: '未更新',
+          lastUpdatedMs: 0,
+          lastAttemptedMs: 0,
+          updateStatus: 'success',
+          errorSummary: '',
+          tagOrder: [],
+          tagMeta: []
+        }, newPayload);
+        hasRenderedData = true;
+      }
+
+      const allLives = Array.isArray(currentPayload.lives) ? currentPayload.lives : [];
+      const allChannels = Array.isArray(currentPayload.channels) ? currentPayload.channels : [];
+
+      document.getElementById('last-updated').textContent = `更新: ${currentPayload.lastUpdated || '未更新'}`;
+      document.getElementById('tab-badge-schedule').textContent = String(allLives.length);
+      document.getElementById('tab-badge-channels').textContent = String(allChannels.length);
+
+      const isChannels = activeView === 'channels';
+      document.getElementById('tab-schedule').classList.toggle('active', !isChannels);
+      document.getElementById('tab-channels').classList.toggle('active', isChannels);
+
+      document.getElementById('schedule-sort-toggle').style.display = isChannels ? 'none' : 'inline-flex';
+      document.getElementById('channel-sort-toggle').style.display = isChannels ? 'inline-flex' : 'none';
+      document.getElementById('ch-search-wrap').style.display = isChannels ? 'inline-flex' : 'none';
+
+      updateStatusBadges();
+
+      if (isChannels) {
+        renderChannelsView(allChannels, allLives);
+      } else {
+        renderScheduleView(allLives);
+      }
+    }
+
+    function scheduleNextAutoFetch() {
+      if (autoRefreshTimerId !== null) {
+        clearTimeout(autoRefreshTimerId);
+      }
+      autoRefreshTimerId = setTimeout(() => {
+        if (!document.hidden) {
+          fetchScheduleData(true);
+        } else {
+          scheduleNextAutoFetch();
+        }
+      }, AUTO_REFRESH_INTERVAL_MS);
+    }
+
+    async function fetchScheduleData(isBackground = false) {
+      if (isFetching) return;
+      isFetching = true;
+
+      const btn = document.getElementById('reload-btn');
+      const contentEl = document.getElementById('content');
+
+      btn.disabled = true;
+      btn.textContent = isBackground ? '更新中...' : '読込中...';
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+      try {
+        const requestUrl = `${GAS_API_URL}?t=${Date.now()}`;
+        const response = await fetch(requestUrl, { signal: controller.signal });
+        if (!response.ok) {
+          throw new Error(`HTTPエラー: ${response.status}`);
+        }
+        const data = await response.json();
+        if (!data || !Array.isArray(data.lives)) {
+          throw new Error('サーバー応答の形式が不正です');
+        }
+
+        const now = Date.now();
+        savedAtMs = now;
+        lastSuccessfulFetchAt = now;
+        lastFetchError = '';
+
+        render(data);
+
+        try {
+          const cacheWrapper = {
+            schemaVersion: 9,
+            savedAtMs: now,
+            payload: data
+          };
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cacheWrapper));
+        } catch (storageErr) {}
+      } catch (e) {
+        lastFetchError = (e.name === 'AbortError')
+          ? '通信がタイムアウトしました'
+          : (e.message || '通信エラー');
+        updateStatusBadges();
+
+        if (!hasRenderedData) {
+          contentEl.innerHTML = `
+            <div class="error-box">データの取得に失敗しました。\n詳細: ${escapeHtml(lastFetchError)}</div>
+          `;
+        }
+      } finally {
+        clearTimeout(timeoutId);
+        isFetching = false;
+        btn.disabled = false;
+        btn.textContent = '再読込';
+        scheduleNextAutoFetch();
+      }
+    }
+
+    function setupEventListeners() {
+      document.getElementById('reload-btn').addEventListener('click', () => {
+        fetchScheduleData(false);
+      });
+
+      document.getElementById('tab-schedule').addEventListener('click', () => {
+        switchView('schedule');
+      });
+
+      document.getElementById('tab-channels').addEventListener('click', () => {
+        switchView('channels');
+      });
+
+      document.getElementById('filter-toggle-btn').addEventListener('click', () => {
+        toggleFilterPanel();
+      });
+
+      document.getElementById('filter-close-btn').addEventListener('click', () => {
+        toggleFilterPanel(false);
+      });
+
+      document.getElementById('sort-time').addEventListener('click', () => {
+        setSortMode('time');
+      });
+
+      document.getElementById('sort-channel').addEventListener('click', () => {
+        setSortMode('channel');
+      });
+
+      document.getElementById('ch-sort-tag').addEventListener('click', () => {
+        setDirSortMode('tag');
+      });
+
+      document.getElementById('ch-sort-subs').addEventListener('click', () => {
+        setDirSortMode('subs');
+      });
+
+      document.getElementById('ch-sort-latest').addEventListener('click', () => {
+        setDirSortMode('latest');
+      });
+
+      const searchInput = document.getElementById('ch-search-input');
+      const clearBtn = document.getElementById('ch-search-clear');
+
+      searchInput.addEventListener('input', () => {
+        dirSearchQuery = searchInput.value;
+        clearBtn.classList.toggle('is-visible', dirSearchQuery.length > 0);
+        render();
+      });
+
+      clearBtn.addEventListener('click', () => {
+        dirSearchQuery = '';
+        searchInput.value = '';
+        clearBtn.classList.remove('is-visible');
+        searchInput.focus();
+        render();
+      });
+
+      document.getElementById('main-tag-chips').addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-main-tag]');
+        if (btn) selectMainTag(btn.dataset.mainTag);
+      });
+
+      document.getElementById('sub-tag-chips').addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-sub-tag]');
+        if (btn) selectSubTag(btn.dataset.subTag);
+      });
+
+      document.getElementById('channel-chips').addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-channel]');
+        if (btn) selectChannel(btn.dataset.channel);
+      });
+
+      document.getElementById('count-bar').addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-action="reset"]');
+        if (btn) resetFilters();
+      });
+
+      // パネル外側クリック・Escキーで絞り込みプルダウンを閉じる
+      document.addEventListener('click', (e) => {
+        if (!isFilterOpen) return;
+        if (!document.contains(e.target)) return;
+        const panel = document.getElementById('filter-panel');
+        const toggleBtn = document.getElementById('filter-toggle-btn');
+        if (!panel.contains(e.target) && !toggleBtn.contains(e.target)) {
+          toggleFilterPanel(false);
+        }
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && isFilterOpen) {
+          toggleFilterPanel(false);
+        }
+      });
+
+      window.addEventListener('hashchange', () => {
+        const target = (location.hash === '#channels') ? 'channels' : 'schedule';
+        if (target !== activeView) {
+          activeView = target;
+          render();
+        }
+      });
+
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+          updateStatusBadges();
+          if (Date.now() - lastSuccessfulFetchAt >= AUTO_REFRESH_INTERVAL_MS) {
+            fetchScheduleData(true);
+          }
+        }
+      });
+
+      window.addEventListener('online', () => {
+        fetchScheduleData(true);
+      });
+
+      setInterval(updateStatusBadges, 60 * 1000);
+    }
+
+    (function init() {
+      setupEventListeners();
+
+      let hasLocalCache = false;
+      try {
+        const cachedStr = localStorage.getItem(LOCAL_STORAGE_KEY) || localStorage.getItem('yt_live_schedule_cache_v8');
+        if (cachedStr) {
+          const wrapper = JSON.parse(cachedStr);
+          if (wrapper && wrapper.payload && Array.isArray(wrapper.payload.lives)) {
+            savedAtMs = Number(wrapper.savedAtMs) || 0;
+            render(wrapper.payload);
+            hasLocalCache = true;
+          }
+        }
+      } catch (e) {}
+
+      fetchScheduleData(hasLocalCache);
+    })();
+  </script>
+</body>
+</html>
