@@ -60,7 +60,7 @@
     header {
       background-color: var(--header-bg);
       border-bottom: 1px solid var(--border-subtle);
-      padding: 6px 12px;
+      padding: 5px 12px;
       flex-shrink: 0;
       z-index: 60;
     }
@@ -230,12 +230,12 @@
 
     .schedule-drawer {
       position: fixed;
-      top: 44px;
+      top: 42px;
       left: 12px;
       right: 12px;
       max-width: 1360px;
       margin: 0 auto;
-      max-height: calc(100dvh - 60px);
+      max-height: calc(100dvh - 58px);
       background-color: #18181c;
       border: 1px solid #3a3a42;
       border-radius: 12px;
@@ -503,10 +503,10 @@
       grid-template-rows: minmax(0, 1fr);
     }
 
-    /* レイアウト2: 2窓+並列チャット */
+    /* レイアウト2: 2窓+並列チャット（通常Chrome＋ブックマークバーでも入力欄が収まる比率） */
     .stage-container.layout-2chat {
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      grid-template-rows: minmax(0, 1.35fr) minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr) minmax(min(425px, 54%), 1.1fr);
     }
 
     /* レイアウト3: 2x2（4窓） */
@@ -557,7 +557,7 @@
     }
 
     .slot-bar {
-      height: 28px;
+      height: 25px;
       background-color: #18181d;
       border-bottom: 1px solid var(--border-subtle);
       padding: 0 6px;
@@ -718,14 +718,14 @@
     }
 
     .chat-pane-header {
-      height: 24px;
+      height: 21px;
       background-color: #18181d;
       border-bottom: 1px solid var(--border-subtle);
       padding: 0 8px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-size: 0.69rem;
+      font-size: 0.68rem;
       font-weight: 700;
       color: var(--text-sub);
       flex-shrink: 0;
@@ -917,8 +917,8 @@
         <div class="header-center">
           <div class="layout-switcher" role="group" aria-label="画面レイアウト切替">
             <button class="layout-btn" type="button" data-layout="1x2">1×2</button>
-            <button class="layout-btn" type="button" data-layout="2chat">2窓+チャット</button>
-            <button class="layout-btn active" type="button" data-layout="2x2">2×2</button>
+            <button class="layout-btn active" type="button" data-layout="2chat">2窓+チャット</button>
+            <button class="layout-btn" type="button" data-layout="2x2">2×2</button>
             <button class="layout-btn" type="button" data-layout="1plus3">1メイン+3</button>
             <button class="layout-btn" type="button" data-layout="3x2">3×2</button>
           </div>
@@ -965,7 +965,7 @@
 
     <!-- メインワークスペース -->
     <div class="workspace">
-      <main class="stage-container layout-2x2" id="stage-container">
+      <main class="stage-container layout-2chat" id="stage-container">
         <!-- 6枠分のスロットはDOMを破棄せずCSS Gridで再配置 -->
         <div class="slot-card is-empty is-main-slot" id="slot-0" data-slot="0">
           <div class="slot-bar">
@@ -1013,7 +1013,7 @@
           </div>
         </div>
 
-        <div class="slot-card is-empty" id="slot-2" data-slot="2">
+        <div class="slot-card is-empty is-hidden-by-layout" id="slot-2" data-slot="2">
           <div class="slot-bar">
             <div class="slot-bar-left">
               <span class="slot-num">#3</span>
@@ -1036,7 +1036,7 @@
           </div>
         </div>
 
-        <div class="slot-card is-empty" id="slot-3" data-slot="3">
+        <div class="slot-card is-empty is-hidden-by-layout" id="slot-3" data-slot="3">
           <div class="slot-bar">
             <div class="slot-bar-left">
               <span class="slot-num">#4</span>
@@ -1175,7 +1175,7 @@
       volume: 80
     }));
 
-    let currentLayout = '2x2';
+    let currentLayout = '2chat';
     let mainSlotIndex = 0;
     let soloSlotIndex = null;
     let activeSidebarChatSlot = 0;
@@ -1361,7 +1361,6 @@
       if (!slots[slotIdx].videoId) return;
 
       if (soloSlotIndex === slotIdx) {
-        // すでにソロ中の枠を再押下した場合はミュートに切り替え
         soloSlotIndex = null;
         slots[slotIdx].isMuted = true;
         applySlotAudioState(slotIdx);
@@ -1383,7 +1382,6 @@
       if (slot.isMuted && soloSlotIndex === slotIdx) {
         soloSlotIndex = null;
       } else if (!slot.isMuted) {
-        // 他が全てミュート状態なら自動的にソロ状態へ昇格
         const unmutedCount = slots.filter(s => s.videoId && !s.isMuted).length;
         soloSlotIndex = (unmutedCount === 1) ? slotIdx : null;
       }
@@ -1449,11 +1447,7 @@
       slot.channelTitle = meta.channelTitle || '';
       slot.title = meta.title || '';
 
-      // 最初の1窓目追加時は自動で音声ON（ソロ）、2窓目以降はハウリング防止でミュート
-      if (activeCountBefore === 0 && !slot.videoId) {
-        slot.isMuted = false;
-        soloSlotIndex = slotIdx;
-      } else if (activeCountBefore === 0) {
+      if (activeCountBefore === 0) {
         slot.isMuted = false;
         soloSlotIndex = slotIdx;
       } else if (soloSlotIndex !== slotIdx) {
@@ -1499,7 +1493,6 @@
       updateSlotHeader(slotIdx);
       applySlotAudioState(slotIdx);
 
-      // サイドバーチャットのキャッシュフレーム破棄
       if (sidebarChatFrames.has(slotIdx)) {
         sidebarChatFrames.get(slotIdx).remove();
         sidebarChatFrames.delete(slotIdx);
@@ -1534,9 +1527,8 @@
 
       setSlotVideo(emptyIdx, videoId, meta);
 
-      // 現在のレイアウト容量を超えたら自動で適切なレイアウトに拡張
       const activeCount = slots.filter(s => Boolean(s.videoId)).length;
-      if (activeCount > (LAYOUT_CAPACITY[currentLayout] || 4)) {
+      if (activeCount > (LAYOUT_CAPACITY[currentLayout] || 2)) {
         setLayout(pickOptimalLayout(activeCount), false);
       } else {
         applyLayoutVisibility();
@@ -1615,8 +1607,7 @@
     }
 
     function applyLayoutVisibility() {
-      const cap = LAYOUT_CAPACITY[currentLayout] || 4;
-      // メイン枠がキャップ外に隠れないよう保証
+      const cap = LAYOUT_CAPACITY[currentLayout] || 2;
       if (mainSlotIndex >= cap) {
         mainSlotIndex = 0;
       }
@@ -1790,7 +1781,6 @@
       const liveCount = scheduleLives.filter(item => item.status === 'live').length;
       document.getElementById('live-count-badge').textContent = `(${liveCount})`;
 
-      // すでにURLパラメータ等でセット済みのスロットにチャンネル名・タイトルを補完
       slots.forEach((slot, idx) => {
         if (!slot.videoId) return;
         const found = scheduleLives.find(item => item.videoId === slot.videoId);
@@ -1806,7 +1796,6 @@
     }
 
     function renderDrawer() {
-      // タグチップ構築
       const filterRow = document.getElementById('drawer-tag-filters');
       const mainTags = tagMeta.filter(m => m.group === 'main').map(m => m.name);
 
@@ -1817,7 +1806,6 @@
       ];
       filterRow.innerHTML = chipsHtml.join('');
 
-      // フィルタリング
       const filtered = scheduleLives.filter(item => {
         if (drawerOnlyLive && item.status !== 'live') return false;
         if (drawerSelectedTag !== 'ALL') {
@@ -2057,10 +2045,10 @@
       setupEvents();
       document.getElementById('btn-toggle-chat').classList.add('btn-primary');
 
-      const hasCache = loadCachedSchedule();
+      loadCachedSchedule();
       fetchLatestSchedule();
 
-      // URLパラメータ復元 (?v=ID1,ID2&layout=2x2)
+      // URLパラメータ復元 (?v=ID1,ID2&layout=2chat)
       const params = new URLSearchParams(location.search);
       const initialLayout = params.get('layout');
       const vParam = params.get('v');
@@ -2078,13 +2066,11 @@
           setLayout(initialLayout, false);
         } else if (ids.length > 0) {
           setLayout(pickOptimalLayout(ids.length), false);
+        } else {
+          setLayout('2chat', false);
         }
       } else {
-        setLayout('2x2', false);
-        // 初期状態で動画未指定なら、すぐに枠を選べるようドロワーを開く
-        if (hasCache || true) {
-          openDrawer();
-        }
+        setLayout('2chat', false);
       }
     })();
   </script>
