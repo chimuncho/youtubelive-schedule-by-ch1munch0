@@ -222,6 +222,8 @@
       cursor: pointer;
       transition: background-color 0.15s, opacity 0.15s;
       flex-shrink: 0;
+      min-width: 68px;
+      text-align: center;
     }
 
     .reload-btn:hover:not(:disabled) {
@@ -230,6 +232,10 @@
 
     .reload-btn:disabled {
       opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .reload-btn.is-fetching {
       cursor: wait;
     }
 
@@ -1103,6 +1109,8 @@
     const LOCAL_STORAGE_KEY = 'yt_live_schedule_cache_v9';
     const FETCH_TIMEOUT_MS = 15000;
     const AUTO_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+    const MANUAL_RELOAD_COOLDOWN_MS = 5000;
+    const MIN_AUTO_FETCH_GAP_MS = 15000;
     const STALE_THRESHOLD_MS = 30 * 60 * 1000;
     const TRIGGER_STALL_THRESHOLD_MS = 45 * 60 * 1000;
 
@@ -1135,10 +1143,14 @@
       tagMeta: []
     };
     let hasRenderedData = false;
+    let hasLoadedFullChannels = false;
     let savedAtMs = 0;
+    let lastFetchAttemptAt = 0;
     let lastSuccessfulFetchAt = 0;
     let lastFetchError = '';
     let isFetching = false;
+    let reloadCooldownUntilMs = 0;
+    let reloadCooldownTimerId = null;
     let autoRefreshTimerId = null;
 
     let activeView = (location.hash === '#channels') ? 'channels' : 'schedule';
@@ -1162,7 +1174,7 @@
 
     function getJstDateLabels() {
       const now = new Date();
-      const jstNow = new Date(now.getTime() + (9 * 60 * 60 * 1000) + (now.getTimezoneOffset() * 60 * 1000));
+      const jstNow = new Date(now.getTime() + (9 * 60 * 60 * 1000) + (now.getTimezoneOffset() * 1000 * 60));
       const jstTomorrow = new Date(jstNow.getTime() + 24 * 60 * 60 * 1000);
       const fmt = (d) => `${d.getMonth() + 1}/${d.getDate()}`;
       return {
@@ -1253,15 +1265,57 @@
     }
 
     function formatSubscriberCount(count) {
-      if (count === null || count === undefined || count === '' || isNaN(Number(count))) {
+      if (count === null || count === undefined || count === '' || typeof count === 'boolean') {
         return '登録者数非公開';
       }
       const num = Number(count);
+      if (!Number.isFinite(num) || num <= 0) {
+        return '登録者数非公開';
+      }
       if (num >= 10000) {
         const man = (num / 10000).toFixed(num >= 100000 ? 1 : 2).replace(/\.?0+$/, '');
         return `登録者 ${man}万人`;
       }
-      return `登録者 ${num.toLocaleString('ja-JP')}人`;
+      return `登録者 ${Math.floor(num).toLocaleString('ja-JP')}人`;
+    }
+
+    function updateReloadButtonState(fetchingLabel) {
+      const btn = document.getElementById('reload-btn');
+      if (!btn) return;
+
+      if (isFetching) {
+        btn.disabled = true;
+        btn.classList.add('is-fetching');
+        btn.textContent = fetchingLabel || '更新中...';
+        return;
+      }
+
+      btn.classList.remove('is-fetching');
+      const remainMs = reloadCooldownUntilMs - Date.now();
+      if (remainMs > 0) {
+        btn.disabled = true;
+        const sec = Math.ceil(remainMs / 1000);
+        btn.textContent = `再読込 (${sec}s)`;
+      } else {
+        btn.disabled = false;
+        btn.textContent = '再読込';
+      }
+    }
+
+    function startReloadCooldown(durationMs = MANUAL_RELOAD_COOLDOWN_MS) {
+      reloadCooldownUntilMs = Date.now() + durationMs;
+      if (reloadCooldownTimerId !== null) {
+        clearInterval(reloadCooldownTimerId);
+      }
+      updateReloadButtonState();
+      reloadCooldownTimerId = setInterval(() => {
+        if (Date.now() >= reloadCooldownUntilMs) {
+          clearInterval(reloadCooldownTimerId);
+          reloadCooldownTimerId = null;
+          reloadCooldownUntilMs = 0;
+        }
+        updateReloadButtonState();
+      }, 250);
     }
 
     function updateStatusBadges() {
@@ -1308,6 +1362,10 @@
       } catch (e) {}
 
       render();
+
+      if (view === 'channels' && !hasLoadedFullChannels && !isFetching) {
+        fetchScheduleData({ isBackground: true, forceFull: true });
+      }
     }
 
     function toggleFilterPanel(forceState) {
@@ -1480,7 +1538,7 @@
 
       card.innerHTML = `
         <div class="thumb-wrap">
-          <img src="${escapeHtml(safeThumb)}" alt="" loading="lazy">
+          <img class="card-thumb-img" src="${escapeHtml(safeThumb)}" alt="" loading="lazy">
           <div class="badge-group">
             ${statusBadge}
             ${memberBadge}
@@ -1512,7 +1570,7 @@
       const safeIcon = sanitizeImageUrl(ch.iconUrl, '');
       const initialChar = String(ch.channelTitle || '?').trim().charAt(0) || '?';
       const avatarHtml = safeIcon
-        ? `<img src="${escapeHtml(safeIcon)}" alt="" width="56" height="56" decoding="async" referrerpolicy="no-referrer" onerror="this.remove();">`
+        ? `<img class="ch-avatar-img" src="${escapeHtml(safeIcon)}" alt="" width="56" height="56" decoding="async" referrerpolicy="no-referrer" data-fallback-initial="${escapeHtml(initialChar)}">`
         : `<span>${escapeHtml(initialChar)}</span>`;
 
       const liveBadgeHtml = isLiveNow ? `<span class="ch-live-pill">LIVE</span>` : '';
@@ -1912,8 +1970,8 @@
     }
 
     function compareBySubs(a, b) {
-      const sa = (typeof a.subscriberCount === 'number') ? a.subscriberCount : -1;
-      const sb = (typeof b.subscriberCount === 'number') ? b.subscriberCount : -1;
+      const sa = (typeof a.subscriberCount === 'number' && a.subscriberCount > 0) ? a.subscriberCount : -1;
+      const sb = (typeof b.subscriberCount === 'number' && b.subscriberCount > 0) ? b.subscriberCount : -1;
       if (sb !== sa) return sb - sa;
       return compareByOrder(a, b);
     }
@@ -2071,26 +2129,23 @@
 
     function render(newPayload) {
       if (newPayload) {
-        currentPayload = Object.assign({
-          lives: [],
-          channels: [],
-          lastUpdated: '未更新',
-          lastUpdatedMs: 0,
-          lastAttemptedMs: 0,
-          updateStatus: 'success',
-          errorSummary: '',
-          tagOrder: [],
-          tagMeta: []
-        }, newPayload);
+        const merged = Object.assign({}, currentPayload, newPayload);
+        if (!Array.isArray(newPayload.channels) && Array.isArray(currentPayload.channels)) {
+          merged.channels = currentPayload.channels;
+        }
+        currentPayload = merged;
         hasRenderedData = true;
       }
 
       const allLives = Array.isArray(currentPayload.lives) ? currentPayload.lives : [];
       const allChannels = Array.isArray(currentPayload.channels) ? currentPayload.channels : [];
+      const totalChannelCount = (typeof currentPayload.channelCount === 'number' && allChannels.length === 0)
+        ? currentPayload.channelCount
+        : allChannels.length;
 
       document.getElementById('last-updated').textContent = `更新: ${currentPayload.lastUpdated || '未更新'}`;
       document.getElementById('tab-badge-schedule').textContent = String(allLives.length);
-      document.getElementById('tab-badge-channels').textContent = String(allChannels.length);
+      document.getElementById('tab-badge-channels').textContent = String(totalChannelCount);
 
       const isChannels = activeView === 'channels';
       document.getElementById('tab-schedule').classList.toggle('active', !isChannels);
@@ -2115,28 +2170,35 @@
       }
       autoRefreshTimerId = setTimeout(() => {
         if (!document.hidden) {
-          fetchScheduleData(true);
+          fetchScheduleData({ isBackground: true });
         } else {
           scheduleNextAutoFetch();
         }
       }, AUTO_REFRESH_INTERVAL_MS);
     }
 
-    async function fetchScheduleData(isBackground = false) {
+    async function fetchScheduleData(options = {}) {
+      const normalizedOpts = (typeof options === 'boolean')
+        ? { isBackground: options }
+        : (options || {});
+      const { isBackground = false, forceFull = false, isManual = false } = normalizedOpts;
+
       if (isFetching) return;
+      if (isManual && Date.now() < reloadCooldownUntilMs) return;
+
       isFetching = true;
+      lastFetchAttemptAt = Date.now();
+      updateReloadButtonState(isBackground ? '更新中...' : '読込中...');
 
-      const btn = document.getElementById('reload-btn');
       const contentEl = document.getElementById('content');
-
-      btn.disabled = true;
-      btn.textContent = isBackground ? '更新中...' : '読込中...';
-
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
+      const needFullPayload = forceFull || activeView === 'channels' || hasLoadedFullChannels;
+      const modeParam = needFullPayload ? '' : 'mode=schedule&';
+
       try {
-        const requestUrl = `${GAS_API_URL}?t=${Date.now()}`;
+        const requestUrl = `${GAS_API_URL}?${modeParam}t=${Date.now()}`;
         const response = await fetch(requestUrl, { signal: controller.signal });
         if (!response.ok) {
           throw new Error(`HTTPエラー: ${response.status}`);
@@ -2144,6 +2206,10 @@
         const data = await response.json();
         if (!data || !Array.isArray(data.lives)) {
           throw new Error('サーバー応答の形式が不正です');
+        }
+
+        if (Array.isArray(data.channels)) {
+          hasLoadedFullChannels = true;
         }
 
         const now = Date.now();
@@ -2154,10 +2220,22 @@
         render(data);
 
         try {
+          let existingPayload = {};
+          const prevRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
+          if (prevRaw) {
+            const prevParsed = JSON.parse(prevRaw);
+            if (prevParsed && prevParsed.payload && typeof prevParsed.payload === 'object') {
+              existingPayload = prevParsed.payload;
+            }
+          }
+          const mergedPayload = Object.assign({}, existingPayload, data);
+          if (!Array.isArray(data.channels) && Array.isArray(existingPayload.channels)) {
+            mergedPayload.channels = existingPayload.channels;
+          }
           const cacheWrapper = {
             schemaVersion: 9,
             savedAtMs: now,
-            payload: data
+            payload: mergedPayload
           };
           localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cacheWrapper));
         } catch (storageErr) {}
@@ -2175,15 +2253,19 @@
       } finally {
         clearTimeout(timeoutId);
         isFetching = false;
-        btn.disabled = false;
-        btn.textContent = '再読込';
+        if (isManual) {
+          startReloadCooldown(MANUAL_RELOAD_COOLDOWN_MS);
+        } else {
+          updateReloadButtonState();
+        }
         scheduleNextAutoFetch();
       }
     }
 
     function setupEventListeners() {
       document.getElementById('reload-btn').addEventListener('click', () => {
-        fetchScheduleData(false);
+        if (isFetching || Date.now() < reloadCooldownUntilMs) return;
+        fetchScheduleData({ isBackground: false, isManual: true });
       });
 
       document.getElementById('tab-schedule').addEventListener('click', () => {
@@ -2259,6 +2341,21 @@
         if (btn) resetFilters();
       });
 
+      // 画像読み込みエラーの集中ハンドリング（インラインonerror廃止・CSP対応）
+      document.getElementById('content').addEventListener('error', (e) => {
+        const target = e.target;
+        if (!(target instanceof HTMLImageElement)) return;
+        if (target.classList.contains('ch-avatar-img')) {
+          const fallbackText = target.dataset.fallbackInitial || '?';
+          const span = document.createElement('span');
+          span.textContent = fallbackText;
+          target.replaceWith(span);
+        } else if (target.dataset.fallbackApplied !== '1') {
+          target.dataset.fallbackApplied = '1';
+          target.style.visibility = 'hidden';
+        }
+      }, true);
+
       // パネル外側クリック・Escキーで絞り込みプルダウンを閉じる
       document.addEventListener('click', (e) => {
         if (!isFilterOpen) return;
@@ -2281,20 +2378,29 @@
         if (target !== activeView) {
           activeView = target;
           render();
+          if (target === 'channels' && !hasLoadedFullChannels && !isFetching) {
+            fetchScheduleData({ isBackground: true, forceFull: true });
+          }
         }
       });
 
       document.addEventListener('visibilitychange', () => {
         if (!document.hidden) {
           updateStatusBadges();
-          if (Date.now() - lastSuccessfulFetchAt >= AUTO_REFRESH_INTERVAL_MS) {
-            fetchScheduleData(true);
+          const now = Date.now();
+          if (
+            now - lastSuccessfulFetchAt >= AUTO_REFRESH_INTERVAL_MS &&
+            now - lastFetchAttemptAt >= MIN_AUTO_FETCH_GAP_MS
+          ) {
+            fetchScheduleData({ isBackground: true });
           }
         }
       });
 
       window.addEventListener('online', () => {
-        fetchScheduleData(true);
+        if (Date.now() - lastFetchAttemptAt >= MIN_AUTO_FETCH_GAP_MS) {
+          fetchScheduleData({ isBackground: true });
+        }
       });
 
       setInterval(updateStatusBadges, 60 * 1000);
@@ -2316,7 +2422,7 @@
         }
       } catch (e) {}
 
-      fetchScheduleData(hasLocalCache);
+      fetchScheduleData({ isBackground: hasLocalCache });
     })();
   </script>
 </body>
