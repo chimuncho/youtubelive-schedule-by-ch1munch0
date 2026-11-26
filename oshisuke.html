@@ -6,6 +6,7 @@
   <meta name="robots" content="noindex, nofollow">
   <title>推しスケ！</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2224%22 fill=%22%23ff0033%22/><polygon points=%2238,28 74,50 38,72%22 fill=%22%23ffffff%22/><circle cx=%2278%22 cy=%2222%22 r=%2210%22 fill=%22%23ffd60a%22/></svg>">
+  <script src="./config.js"></script>
   <style>
     :root {
       --bg-color: #131316;
@@ -1105,10 +1106,23 @@
   </main>
 
   <script>
-    const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzKEjdp1EPCZ_8jCAvaGfTdOA9kCVBnau0XdnR9-uuj7kYlAbqp-jRQrAouMQnUSqPs/exec';
-    const LOCAL_STORAGE_KEY = 'yt_live_schedule_cache_v9';
+    const APP_CFG = window.OSHISUKE_CONFIG || {
+      GAS_URL: 'https://script.google.com/macros/s/AKfycbzKEjdp1EPCZ_8jCAvaGfTdOA9kCVBnau0XdnR9-uuj7kYlAbqp-jRQrAouMQnUSqPs/exec',
+      CACHE_KEYS: {
+        LIVES: 'oshisuke_lives_cache_v8',
+        FULL: 'oshisuke_full_cache_v8',
+        BM_TAGS: 'oshisuke_bm_tags_cache_v2'
+      },
+      AUTO_REFRESH_INTERVAL_MS: 3 * 60 * 1000,
+      NEW_BADGE_MAX_SEEN: 4
+    };
+
+    const GAS_API_URL = APP_CFG.GAS_URL;
+    const LIVES_CACHE_KEY = (APP_CFG.CACHE_KEYS && APP_CFG.CACHE_KEYS.LIVES) || 'oshisuke_lives_cache_v8';
+    const FULL_CACHE_KEY = (APP_CFG.CACHE_KEYS && APP_CFG.CACHE_KEYS.FULL) || 'oshisuke_full_cache_v8';
     const FETCH_TIMEOUT_MS = 15000;
-    const AUTO_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+    const AUTO_REFRESH_INTERVAL_MS = Number(APP_CFG.AUTO_REFRESH_INTERVAL_MS) || (3 * 60 * 1000);
+    const NEW_BADGE_MAX_SEEN = Number(APP_CFG.NEW_BADGE_MAX_SEEN) || 4;
     const MANUAL_RELOAD_COOLDOWN_MS = 5000;
     const MIN_AUTO_FETCH_GAP_MS = 15000;
     const STALE_THRESHOLD_MS = 30 * 60 * 1000;
@@ -1500,7 +1514,7 @@
       const diffToStartMs = (item.startTimeMs > 0) ? (item.startTimeMs - nowMs) : Infinity;
       const isStartingSoon = !isLive && item.startTimeMs > 0 && diffToStartMs > 0 && diffToStartMs <= 30 * 60 * 1000;
       const isMemberStarted = isMember && !isLive && item.startTimeMs > 0 && item.startTimeMs <= nowMs;
-      const isNewItem = (typeof item.seenCount === 'number') && item.seenCount >= 1 && item.seenCount <= 4;
+      const isNewItem = (typeof item.seenCount === 'number') && item.seenCount >= 1 && item.seenCount <= NEW_BADGE_MAX_SEEN;
 
       const card = document.createElement('a');
       card.className = `card ${isLive ? 'is-live' : ''} ${isStartingSoon ? 'is-soon' : ''} ${isMember ? 'is-member' : ''}`.trim();
@@ -2177,6 +2191,49 @@
       }, AUTO_REFRESH_INTERVAL_MS);
     }
 
+    function readCacheWrapper(key) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.payload && Array.isArray(parsed.payload.lives)) {
+          return parsed;
+        }
+      } catch (e) {}
+      return null;
+    }
+
+    function persistCaches(now, data) {
+      try {
+        // 1. LIVES キャッシュ（スケジュール＆複窓ドロワー共有）を最新化
+        const prevLivesWrapper = readCacheWrapper(LIVES_CACHE_KEY);
+        const prevLivesPayload = (prevLivesWrapper && prevLivesWrapper.payload) || {};
+        const livesPayload = Object.assign({}, prevLivesPayload, data);
+        delete livesPayload.channels;
+
+        localStorage.setItem(LIVES_CACHE_KEY, JSON.stringify({
+          schemaVersion: 8,
+          savedAtMs: now,
+          payload: livesPayload
+        }));
+
+        // 2. FULL キャッシュ（チャンネル一覧含む）を最新化
+        const prevFullWrapper = readCacheWrapper(FULL_CACHE_KEY);
+        const prevFullPayload = (prevFullWrapper && prevFullWrapper.payload) || {};
+        if (Array.isArray(data.channels) || Array.isArray(prevFullPayload.channels)) {
+          const fullPayload = Object.assign({}, prevFullPayload, data);
+          if (!Array.isArray(data.channels) && Array.isArray(prevFullPayload.channels)) {
+            fullPayload.channels = prevFullPayload.channels;
+          }
+          localStorage.setItem(FULL_CACHE_KEY, JSON.stringify({
+            schemaVersion: 8,
+            savedAtMs: now,
+            payload: fullPayload
+          }));
+        }
+      } catch (storageErr) {}
+    }
+
     async function fetchScheduleData(options = {}) {
       const normalizedOpts = (typeof options === 'boolean')
         ? { isBackground: options }
@@ -2218,27 +2275,7 @@
         lastFetchError = '';
 
         render(data);
-
-        try {
-          let existingPayload = {};
-          const prevRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
-          if (prevRaw) {
-            const prevParsed = JSON.parse(prevRaw);
-            if (prevParsed && prevParsed.payload && typeof prevParsed.payload === 'object') {
-              existingPayload = prevParsed.payload;
-            }
-          }
-          const mergedPayload = Object.assign({}, existingPayload, data);
-          if (!Array.isArray(data.channels) && Array.isArray(existingPayload.channels)) {
-            mergedPayload.channels = existingPayload.channels;
-          }
-          const cacheWrapper = {
-            schemaVersion: 9,
-            savedAtMs: now,
-            payload: mergedPayload
-          };
-          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cacheWrapper));
-        } catch (storageErr) {}
+        persistCaches(now, data);
       } catch (e) {
         lastFetchError = (e.name === 'AbortError')
           ? '通信がタイムアウトしました'
@@ -2410,17 +2447,47 @@
       setupEventListeners();
 
       let hasLocalCache = false;
-      try {
-        const cachedStr = localStorage.getItem(LOCAL_STORAGE_KEY) || localStorage.getItem('yt_live_schedule_cache_v8');
-        if (cachedStr) {
-          const wrapper = JSON.parse(cachedStr);
-          if (wrapper && wrapper.payload && Array.isArray(wrapper.payload.lives)) {
-            savedAtMs = Number(wrapper.savedAtMs) || 0;
-            render(wrapper.payload);
-            hasLocalCache = true;
+      const fullWrapper = readCacheWrapper(FULL_CACHE_KEY);
+      const livesWrapper = readCacheWrapper(LIVES_CACHE_KEY);
+      const legacyWrapper = (!fullWrapper && !livesWrapper)
+        ? (readCacheWrapper('yt_live_schedule_cache_v9') || readCacheWrapper('yt_live_schedule_cache_v8'))
+        : null;
+
+      if (fullWrapper && Array.isArray(fullWrapper.payload.channels)) {
+        hasLoadedFullChannels = true;
+      }
+
+      if (fullWrapper || livesWrapper) {
+        const fullTime = fullWrapper ? (Number(fullWrapper.savedAtMs) || 0) : 0;
+        const livesTime = livesWrapper ? (Number(livesWrapper.savedAtMs) || 0) : 0;
+
+        let initialPayload = null;
+        if (fullWrapper && livesWrapper && livesTime > fullTime) {
+          initialPayload = Object.assign({}, fullWrapper.payload, livesWrapper.payload);
+          if (Array.isArray(fullWrapper.payload.channels)) {
+            initialPayload.channels = fullWrapper.payload.channels;
           }
+          savedAtMs = livesTime;
+        } else if (fullWrapper) {
+          initialPayload = fullWrapper.payload;
+          savedAtMs = fullTime;
+        } else {
+          initialPayload = livesWrapper.payload;
+          savedAtMs = livesTime;
         }
-      } catch (e) {}
+
+        if (initialPayload) {
+          render(initialPayload);
+          hasLocalCache = true;
+        }
+      } else if (legacyWrapper) {
+        savedAtMs = Number(legacyWrapper.savedAtMs) || 0;
+        if (Array.isArray(legacyWrapper.payload.channels)) {
+          hasLoadedFullChannels = true;
+        }
+        render(legacyWrapper.payload);
+        hasLocalCache = true;
+      }
 
       fetchScheduleData({ isBackground: hasLocalCache });
     })();
