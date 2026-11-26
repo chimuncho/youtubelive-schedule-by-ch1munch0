@@ -1215,20 +1215,16 @@
     const MAX_SLOTS = 6;
     const VIDEO_ID_REGEX = /^[a-zA-Z0-9_-]{11}$/;
 
-    const ALLOWED_IMAGE_HOSTS = new Set(
-      Array.isArray(APP_CFG.ALLOWED_IMAGE_HOSTS) && APP_CFG.ALLOWED_IMAGE_HOSTS.length > 0
-        ? APP_CFG.ALLOWED_IMAGE_HOSTS
-        : [
-            'i.ytimg.com',
-            'i1.ytimg.com',
-            'i2.ytimg.com',
-            'i3.ytimg.com',
-            'i4.ytimg.com',
-            'img.youtube.com',
-            'yt3.ggpht.com',
-            'yt3.googleusercontent.com'
-          ]
-    );
+    const ALLOWED_IMAGE_HOSTS = new Set([
+      'i.ytimg.com',
+      'i1.ytimg.com',
+      'i2.ytimg.com',
+      'i3.ytimg.com',
+      'i4.ytimg.com',
+      'img.youtube.com',
+      'yt3.ggpht.com',
+      'yt3.googleusercontent.com'
+    ]);
 
     const LAYOUT_CAPACITY = {
       '1x2': 2,
@@ -1546,17 +1542,11 @@
       }
 
       if (slot.player && slot.playerReady) {
-        if (!isSlotVisibleInLayout(slotIdx)) {
-          slot.isMuted = true;
-        }
-        try {
-          if (slot.isMuted) {
-            slot.player.mute();
-          }
-        } catch (e) {}
         slot.player.loadVideoById(videoId);
         if (!isSlotVisibleInLayout(slotIdx)) {
+          slot.isMuted = true;
           try {
+            slot.player.mute();
             slot.player.pauseVideo();
           } catch (e) {}
         }
@@ -1896,20 +1886,10 @@
         return;
       }
 
-      const simulatedOccupied = slots.map(s => Boolean(s.videoId));
-      let maxSlotIdxUsed = simulatedOccupied.reduce((acc, occ, i) => (occ ? i : acc), -1);
-      let plannedCount = simulatedOccupied.filter(Boolean).length;
-      for (let i = 0; i < newIds.length; i++) {
-        const emptyIdx = simulatedOccupied.indexOf(false);
-        if (emptyIdx === -1) break;
-        simulatedOccupied[emptyIdx] = true;
-        plannedCount++;
-        if (emptyIdx > maxSlotIdxUsed) maxSlotIdxUsed = emptyIdx;
-      }
-
-      const requiredSlots = Math.min(MAX_SLOTS, Math.max(plannedCount, maxSlotIdxUsed + 1));
-      if (requiredSlots > (LAYOUT_CAPACITY[currentLayout] || 2)) {
-        setLayout(pickOptimalLayout(requiredSlots), false);
+      const currentCount = slots.filter(s => Boolean(s.videoId)).length;
+      const targetTotal = Math.min(MAX_SLOTS, currentCount + newIds.length);
+      if (targetTotal > (LAYOUT_CAPACITY[currentLayout] || 2)) {
+        setLayout(pickOptimalLayout(targetTotal), false);
       }
 
       let added = 0;
@@ -1996,7 +1976,7 @@
           }
           applySlotAudioState(idx);
         } else if (wasHidden && !willHide) {
-          // 非表示 -> 可視：元のミュート状態を復帰して再生再開（ライブ枠は最新位置へ追いつく）
+          // 非表示 -> 可視：元のミュート状態を復帰して再生再開
           if (slot.savedMutedBeforeHide !== null) {
             slot.isMuted = slot.savedMutedBeforeHide;
             slot.savedMutedBeforeHide = null;
@@ -2004,15 +1984,6 @@
           if (slot.videoId && slot.player && slot.playerReady) {
             try {
               slot.player.playVideo();
-              const vData = typeof slot.player.getVideoData === 'function' ? slot.player.getVideoData() : null;
-              const liveItem = scheduleLives.find(item => item.videoId === slot.videoId);
-              const isLiveStream = Boolean((vData && vData.isLive) || (liveItem && liveItem.status === 'live'));
-              if (isLiveStream && typeof slot.player.getDuration === 'function' && typeof slot.player.seekTo === 'function') {
-                const dur = Number(slot.player.getDuration());
-                if (Number.isFinite(dur) && dur > 0) {
-                  slot.player.seekTo(dur, true);
-                }
-              }
             } catch (e) {}
           }
           applySlotAudioState(idx);
@@ -2196,13 +2167,6 @@
       return null;
     }
 
-    function cleanupLegacyCaches() {
-      try {
-        localStorage.removeItem('yt_live_schedule_cache_v9');
-        localStorage.removeItem('yt_live_schedule_cache_v8');
-      } catch (e) {}
-    }
-
     function loadCachedSchedule() {
       const livesWrapper = readCacheWrapper(LIVES_CACHE_KEY);
       const fullWrapper = readCacheWrapper(FULL_CACHE_KEY);
@@ -2212,8 +2176,6 @@
 
       const candidates = [livesWrapper, fullWrapper, legacyWrapper].filter(Boolean);
       candidates.sort((a, b) => (Number(b.savedAtMs) || 0) - (Number(a.savedAtMs) || 0));
-
-      cleanupLegacyCaches();
 
       if (candidates.length > 0) {
         const latest = candidates[0].payload;
