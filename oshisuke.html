@@ -1128,16 +1128,20 @@
     const STALE_THRESHOLD_MS = 30 * 60 * 1000;
     const TRIGGER_STALL_THRESHOLD_MS = 45 * 60 * 1000;
 
-    const ALLOWED_IMAGE_HOSTS = new Set([
-      'i.ytimg.com',
-      'i1.ytimg.com',
-      'i2.ytimg.com',
-      'i3.ytimg.com',
-      'i4.ytimg.com',
-      'img.youtube.com',
-      'yt3.ggpht.com',
-      'yt3.googleusercontent.com'
-    ]);
+    const ALLOWED_IMAGE_HOSTS = new Set(
+      Array.isArray(APP_CFG.ALLOWED_IMAGE_HOSTS) && APP_CFG.ALLOWED_IMAGE_HOSTS.length > 0
+        ? APP_CFG.ALLOWED_IMAGE_HOSTS
+        : [
+            'i.ytimg.com',
+            'i1.ytimg.com',
+            'i2.ytimg.com',
+            'i3.ytimg.com',
+            'i4.ytimg.com',
+            'img.youtube.com',
+            'yt3.ggpht.com',
+            'yt3.googleusercontent.com'
+          ]
+    );
 
     const ALLOWED_CHANNEL_HOSTS = new Set([
       'www.youtube.com',
@@ -2488,6 +2492,11 @@
         render(legacyWrapper.payload);
         hasLocalCache = true;
       }
+
+      try {
+        localStorage.removeItem('yt_live_schedule_cache_v9');
+        localStorage.removeItem('yt_live_schedule_cache_v8');
+      } catch (e) {}
 
       fetchScheduleData({ isBackground: hasLocalCache });
     })();
