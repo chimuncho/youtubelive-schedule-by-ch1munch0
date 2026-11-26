@@ -1186,9 +1186,11 @@
     let dirSearchQuery = '';
     let dirSortMode = 'tag';
 
-    // 折りたたみ展開状態
-    let expandMainTags = false;
-    let expandSubTags = false;
+    // 折りたたみ展開状態（配信スケジュール用・チャンネル一覧用を独立管理）
+    let expandScheduleMainTags = false;
+    let expandScheduleSubTags = false;
+    let expandDirMainTags = false;
+    let expandDirSubTags = false;
 
     function getJstDateLabels() {
       const now = new Date();
@@ -1619,20 +1621,34 @@
 
     /**
      * メインタグリストは全アイテムから、サブタグリストは「選択中メインタグを含むアイテム」から動的に構築
+     * 折りたたみ判定（isFolded）はGAS側の合算値ではなく、各ビューの表示対象アイテム数から算出する
      */
+    function computeLocalFolded(visibility, localCount) {
+      const vis = String(visibility || 'auto').toLowerCase();
+      if (vis === 'show' || vis === 'visible' || vis === 'always') return false;
+      if (vis === 'fold' || vis === 'hide' || vis === 'hidden') return true;
+      return localCount < 3;
+    }
+
     function buildAvailableTagLists(items, activeMainTag) {
-      const allPresentSet = new Set();
+      const allCountMap = new Map();
       items.forEach(item => {
-        parseTags(item.tags).forEach(t => allPresentSet.add(t));
+        const uniqueTags = new Set(parseTags(item.tags));
+        uniqueTags.forEach(t => {
+          allCountMap.set(t, (allCountMap.get(t) || 0) + 1);
+        });
       });
 
       const subScopeItems = (activeMainTag && activeMainTag !== 'ALL')
         ? items.filter(item => parseTags(item.tags).includes(activeMainTag))
         : items;
 
-      const subPresentSet = new Set();
+      const subCountMap = new Map();
       subScopeItems.forEach(item => {
-        parseTags(item.tags).forEach(t => subPresentSet.add(t));
+        const uniqueTags = new Set(parseTags(item.tags));
+        uniqueTags.forEach(t => {
+          subCountMap.set(t, (subCountMap.get(t) || 0) + 1);
+        });
       });
 
       const meta = getNormalizedTagMeta();
@@ -1642,19 +1658,42 @@
 
       meta.forEach(m => {
         if (m.group === 'main') {
-          if (allPresentSet.has(m.name)) mainList.push(m);
+          const localCount = allCountMap.get(m.name) || 0;
+          if (localCount > 0) {
+            mainList.push(Object.assign({}, m, {
+              count: localCount,
+              isFolded: computeLocalFolded(m.visibility, localCount)
+            }));
+          }
         } else {
-          if (subPresentSet.has(m.name)) subList.push(m);
+          const localCount = subCountMap.get(m.name) || 0;
+          if (localCount > 0) {
+            subList.push(Object.assign({}, m, {
+              count: localCount,
+              isFolded: computeLocalFolded(m.visibility, localCount)
+            }));
+          }
         }
       });
 
-      subPresentSet.forEach(t => {
+      subCountMap.forEach((localCount, t) => {
         if (!metaMap.has(t)) {
-          subList.push({ name: t, group: 'sub', count: 1, visibility: 'auto', isFolded: false });
+          subList.push({
+            name: t,
+            group: 'sub',
+            count: localCount,
+            visibility: 'auto',
+            isFolded: computeLocalFolded('auto', localCount)
+          });
         }
       });
 
-      return { mainList, subList, allPresentSet, subPresentSet };
+      return {
+        mainList,
+        subList,
+        allPresentSet: new Set(allCountMap.keys()),
+        subPresentSet: new Set(subCountMap.keys())
+      };
     }
 
     function renderScheduleFilterControls(allLives) {
@@ -1693,8 +1732,8 @@
         selectedMainTag,
         'mainTag',
         'main-tag-chip',
-        expandMainTags,
-        () => { expandMainTags = !expandMainTags; render(); }
+        expandScheduleMainTags,
+        () => { expandScheduleMainTags = !expandScheduleMainTags; render(); }
       );
 
       populateTagRow(
@@ -1704,8 +1743,8 @@
         selectedSubTag,
         'subTag',
         'sub-tag-chip',
-        expandSubTags,
-        () => { expandSubTags = !expandSubTags; render(); }
+        expandScheduleSubTags,
+        () => { expandScheduleSubTags = !expandScheduleSubTags; render(); }
       );
 
       const livesForChannelList = allLives.filter(item => {
@@ -1789,8 +1828,8 @@
         selectedDirMainTag,
         'mainTag',
         'main-tag-chip',
-        expandMainTags,
-        () => { expandMainTags = !expandMainTags; render(); }
+        expandDirMainTags,
+        () => { expandDirMainTags = !expandDirMainTags; render(); }
       );
 
       populateTagRow(
@@ -1800,8 +1839,8 @@
         selectedDirSubTag,
         'subTag',
         'sub-tag-chip',
-        expandSubTags,
-        () => { expandSubTags = !expandSubTags; render(); }
+        expandDirSubTags,
+        () => { expandDirSubTags = !expandDirSubTags; render(); }
       );
 
       const activeLabels = [];
@@ -2049,20 +2088,37 @@
         return;
       }
 
-      // 1. タグ別ビュー（メインタグのみでセクション分け・枠内はチャンネルディレクトリ登録順）
+      // 1. タグ別ビュー（全体表示時はタグマスタ順で最初に該当するメインタグ1箇所のみへ配置し重複を防止）
       if (dirSortMode === 'tag') {
         const mainMetaList = getNormalizedTagMeta().filter(m => m.group === 'main');
         const mainTagNames = mainMetaList.map(m => m.name);
         const mainTagSet = new Set(mainTagNames);
+
+        const bucketsByMainTag = new Map();
+        mainTagNames.forEach(name => bucketsByMainTag.set(name, []));
+
+        if (selectedDirMainTag !== 'ALL') {
+          const matched = filteredChannels
+            .filter(ch => parseTags(ch.tags).includes(selectedDirMainTag))
+            .sort(compareByOrder);
+          bucketsByMainTag.set(selectedDirMainTag, matched);
+        } else {
+          filteredChannels.forEach(ch => {
+            const chTags = parseTags(ch.tags);
+            const primaryMainTag = mainTagNames.find(name => chTags.includes(name));
+            if (primaryMainTag) {
+              bucketsByMainTag.get(primaryMainTag).push(ch);
+            }
+          });
+          bucketsByMainTag.forEach(list => list.sort(compareByOrder));
+        }
 
         const targetMainTags = (selectedDirMainTag !== 'ALL')
           ? [selectedDirMainTag]
           : mainTagNames;
 
         targetMainTags.forEach(tagName => {
-          const matched = filteredChannels
-            .filter(ch => parseTags(ch.tags).includes(tagName))
-            .sort(compareByOrder);
+          const matched = bucketsByMainTag.get(tagName) || [];
           if (matched.length === 0) return;
 
           const tagSection = document.createElement('section');
