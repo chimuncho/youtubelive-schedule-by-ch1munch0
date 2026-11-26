@@ -6,6 +6,7 @@
   <meta name="robots" content="noindex, nofollow">
   <title>推しマド！ | 複窓プレイヤー</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2224%22 fill=%22%231e1e22%22 stroke=%22%23ff0033%22 stroke-width=%228%22/><rect x=%2216%22 y=%2220%22 width=%2230%22 height=%2226%22 rx=%224%22 fill=%22%23ff0033%22/><rect x=%2254%22 y=%2220%22 width=%2230%22 height=%2226%22 rx=%224%22 fill=%22%233ea6ff%22/><rect x=%2216%22 y=%2254%22 width=%2230%22 height=%2226%22 rx=%224%22 fill=%22%233ea6ff%22/><rect x=%2254%22 y=%2254%22 width=%2230%22 height=%2226%22 rx=%224%22 fill=%22%232ba640%22/></svg>">
+  <script src="./config.js"></script>
   <style>
     :root {
       --bg-color: #131316;
@@ -438,6 +439,11 @@
     .d-badge.member {
       color: #4ade80;
       border: 1px solid rgba(43, 166, 64, 0.6);
+    }
+
+    .d-badge.new {
+      background: var(--live-red);
+      color: #fff;
     }
 
     .d-slot-badge {
@@ -1188,8 +1194,23 @@
   <div class="toast" id="toast"></div>
 
   <script>
-    const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzKEjdp1EPCZ_8jCAvaGfTdOA9kCVBnau0XdnR9-uuj7kYlAbqp-jRQrAouMQnUSqPs/exec';
-    const LOCAL_STORAGE_KEY = 'yt_live_schedule_cache_v9';
+    const APP_CFG = window.OSHISUKE_CONFIG || {
+      GAS_URL: 'https://script.google.com/macros/s/AKfycbzKEjdp1EPCZ_8jCAvaGfTdOA9kCVBnau0XdnR9-uuj7kYlAbqp-jRQrAouMQnUSqPs/exec',
+      CACHE_KEYS: {
+        LIVES: 'oshisuke_lives_cache_v8',
+        FULL: 'oshisuke_full_cache_v8',
+        BM_TAGS: 'oshisuke_bm_tags_cache_v2'
+      },
+      AUTO_REFRESH_INTERVAL_MS: 3 * 60 * 1000,
+      NEW_BADGE_MAX_SEEN: 4
+    };
+
+    const GAS_API_URL = APP_CFG.GAS_URL;
+    const LIVES_CACHE_KEY = (APP_CFG.CACHE_KEYS && APP_CFG.CACHE_KEYS.LIVES) || 'oshisuke_lives_cache_v8';
+    const FULL_CACHE_KEY = (APP_CFG.CACHE_KEYS && APP_CFG.CACHE_KEYS.FULL) || 'oshisuke_full_cache_v8';
+    const AUTO_REFRESH_INTERVAL_MS = Number(APP_CFG.AUTO_REFRESH_INTERVAL_MS) || (3 * 60 * 1000);
+    const NEW_BADGE_MAX_SEEN = Number(APP_CFG.NEW_BADGE_MAX_SEEN) || 4;
+    const MIN_AUTO_FETCH_GAP_MS = 15000;
     const FETCH_TIMEOUT_MS = 15000;
     const MAX_SLOTS = 6;
     const VIDEO_ID_REGEX = /^[a-zA-Z0-9_-]{11}$/;
@@ -1242,6 +1263,9 @@
     let tagMeta = [];
     let drawerSelectedTag = 'ALL';
     let drawerOnlyLive = false;
+    let lastFetchAttemptAt = 0;
+    let lastSuccessfulFetchAt = 0;
+    let autoRefreshTimerId = null;
 
     // YouTube IFrame API 状態
     let ytApiReady = false;
@@ -2131,22 +2155,53 @@
     }
 
     /* ===== 「推しスケ！」キャッシュ共有＆API連携 ===== */
-    function loadCachedSchedule() {
+    function readCacheWrapper(key) {
       try {
-        const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-        if (!raw) return false;
+        const raw = localStorage.getItem(key);
+        if (!raw) return null;
         const parsed = JSON.parse(raw);
         if (parsed && parsed.payload && Array.isArray(parsed.payload.lives)) {
-          applySchedulePayload(parsed.payload, `キャッシュ表示 (${parsed.payload.lastUpdated || '取得済'})`);
-          return true;
+          return parsed;
         }
       } catch (e) {}
+      return null;
+    }
+
+    function loadCachedSchedule() {
+      const livesWrapper = readCacheWrapper(LIVES_CACHE_KEY);
+      const fullWrapper = readCacheWrapper(FULL_CACHE_KEY);
+      const legacyWrapper = (!livesWrapper && !fullWrapper)
+        ? (readCacheWrapper('yt_live_schedule_cache_v9') || readCacheWrapper('yt_live_schedule_cache_v8'))
+        : null;
+
+      const candidates = [livesWrapper, fullWrapper, legacyWrapper].filter(Boolean);
+      candidates.sort((a, b) => (Number(b.savedAtMs) || 0) - (Number(a.savedAtMs) || 0));
+
+      if (candidates.length > 0) {
+        const latest = candidates[0].payload;
+        applySchedulePayload(latest, `キャッシュ表示 (${latest.lastUpdated || '取得済'})`);
+        return true;
+      }
       return false;
+    }
+
+    function scheduleNextAutoFetch() {
+      if (autoRefreshTimerId !== null) {
+        clearTimeout(autoRefreshTimerId);
+      }
+      autoRefreshTimerId = setTimeout(() => {
+        if (!document.hidden) {
+          fetchLatestSchedule();
+        } else {
+          scheduleNextAutoFetch();
+        }
+      }, AUTO_REFRESH_INTERVAL_MS);
     }
 
     async function fetchLatestSchedule() {
       const statusEl = document.getElementById('drawer-sync-status');
       statusEl.textContent = 'GAS APIから最新枠を取得中...';
+      lastFetchAttemptAt = Date.now();
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -2159,31 +2214,41 @@
         const data = await res.json();
         if (!data || !Array.isArray(data.lives)) throw new Error('Invalid payload');
 
+        const now = Date.now();
+        lastSuccessfulFetchAt = now;
+
         applySchedulePayload(data, `同期完了 (${data.lastUpdated || '最新'})`);
         try {
-          let existingPayload = {};
-          const prevRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
-          if (prevRaw) {
-            const prevParsed = JSON.parse(prevRaw);
-            if (prevParsed && prevParsed.payload && typeof prevParsed.payload === 'object') {
-              existingPayload = prevParsed.payload;
-            }
-          }
-          const mergedPayload = Object.assign({}, existingPayload, data);
-          if (!Array.isArray(data.channels) && Array.isArray(existingPayload.channels)) {
-            mergedPayload.channels = existingPayload.channels;
-          }
-          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({
-            schemaVersion: 9,
-            savedAtMs: Date.now(),
-            payload: mergedPayload
+          const prevLivesWrapper = readCacheWrapper(LIVES_CACHE_KEY);
+          const prevLivesPayload = (prevLivesWrapper && prevLivesWrapper.payload) || {};
+          const mergedLives = Object.assign({}, prevLivesPayload, data);
+          delete mergedLives.channels;
+
+          localStorage.setItem(LIVES_CACHE_KEY, JSON.stringify({
+            schemaVersion: 8,
+            savedAtMs: now,
+            payload: mergedLives
           }));
+
+          const prevFullWrapper = readCacheWrapper(FULL_CACHE_KEY);
+          if (prevFullWrapper && prevFullWrapper.payload) {
+            const mergedFull = Object.assign({}, prevFullWrapper.payload, data);
+            if (Array.isArray(prevFullWrapper.payload.channels)) {
+              mergedFull.channels = prevFullWrapper.payload.channels;
+            }
+            localStorage.setItem(FULL_CACHE_KEY, JSON.stringify({
+              schemaVersion: 8,
+              savedAtMs: now,
+              payload: mergedFull
+            }));
+          }
         } catch (e) {}
       } catch (err) {
         const errMsg = (err && err.name === 'AbortError') ? 'タイムアウト' : (err.message || '通信エラー');
         statusEl.textContent = `最新取得失敗（キャッシュ表示中）: ${errMsg}`;
       } finally {
         clearTimeout(timeoutId);
+        scheduleNextAutoFetch();
       }
     }
 
@@ -2258,6 +2323,7 @@
         const assignedIdx = slots.findIndex(s => s.videoId === item.videoId);
         const isSelected = assignedIdx !== -1;
         const isLive = item.status === 'live';
+        const isNewItem = (typeof item.seenCount === 'number') && item.seenCount >= 1 && item.seenCount <= NEW_BADGE_MAX_SEEN;
 
         const card = document.createElement('button');
         card.type = 'button';
@@ -2269,12 +2335,13 @@
           ? `<span class="d-badge live">LIVE</span>`
           : `<span class="d-badge upcoming">${escapeHtml(item.displayTime || '予定')}</span>`;
         const memberBadge = item.isMember ? `<span class="d-badge member">メン限</span>` : '';
+        const newBadge = isNewItem ? `<span class="d-badge new">New</span>` : '';
         const slotBadge = isSelected ? `<span class="d-slot-badge">セット中 #${assignedIdx + 1}</span>` : '';
 
         card.innerHTML = `
           <div class="d-thumb">
             <img src="${escapeHtml(thumbUrl)}" alt="" loading="lazy">
-            <div class="d-badges">${statusBadge}${memberBadge}</div>
+            <div class="d-badges">${statusBadge}${memberBadge}${newBadge}</div>
             ${slotBadge}
           </div>
           <div class="d-info">
@@ -2466,6 +2533,18 @@
         else if (k === 'c') toggleChatSidebar();
         else if (k === 'd') isDrawerOpen ? closeDrawer() : openDrawer();
         else if (k === 'f') toggleImmersiveMode();
+      });
+
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+          const now = Date.now();
+          if (
+            now - lastSuccessfulFetchAt >= AUTO_REFRESH_INTERVAL_MS &&
+            now - lastFetchAttemptAt >= MIN_AUTO_FETCH_GAP_MS
+          ) {
+            fetchLatestSchedule();
+          }
+        }
       });
     }
 
