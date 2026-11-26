@@ -955,6 +955,7 @@
 
         <div class="header-right">
           <button class="btn" id="btn-mute-all" type="button" title="ショートカット: M">🔇 全ミュート</button>
+          <button class="btn" id="btn-unmute-all" type="button" title="表示中の全枠のミュートを解除 (ショートカット: U)">🔊 全ミュート解除</button>
           <button class="btn" id="btn-play-all" type="button">▶ 一括再生</button>
           <button class="btn" id="btn-pause-all" type="button">⏸ 一括停止</button>
           <button class="btn" id="btn-toggle-chat" type="button" title="ショートカット: C">💬 チャット</button>
@@ -1189,11 +1190,19 @@
   <script>
     const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzKEjdp1EPCZ_8jCAvaGfTdOA9kCVBnau0XdnR9-uuj7kYlAbqp-jRQrAouMQnUSqPs/exec';
     const LOCAL_STORAGE_KEY = 'yt_live_schedule_cache_v9';
+    const FETCH_TIMEOUT_MS = 15000;
     const MAX_SLOTS = 6;
     const VIDEO_ID_REGEX = /^[a-zA-Z0-9_-]{11}$/;
 
     const ALLOWED_IMAGE_HOSTS = new Set([
-      'i.ytimg.com', 'i1.ytimg.com', 'i2.ytimg.com', 'i3.ytimg.com', 'i4.ytimg.com', 'img.youtube.com'
+      'i.ytimg.com',
+      'i1.ytimg.com',
+      'i2.ytimg.com',
+      'i3.ytimg.com',
+      'i4.ytimg.com',
+      'img.youtube.com',
+      'yt3.ggpht.com',
+      'yt3.googleusercontent.com'
     ]);
 
     const LAYOUT_CAPACITY = {
@@ -1213,7 +1222,9 @@
       player: null,
       playerReady: false,
       isMuted: true,
-      volume: 80
+      volume: 80,
+      isHiddenByLayout: i >= 2,
+      savedMutedBeforeHide: null
     }));
 
     let currentLayout = '2chat';
@@ -1222,6 +1233,9 @@
     let activeSidebarChatSlot = 0;
     let isChatSidebarOpen = true;
     let isDrawerOpen = false;
+
+    // Chrome拡張機能ハンドシェイク状態
+    let isExtensionReady = false;
 
     // 推しスケ！データ
     let scheduleLives = [];
@@ -1233,7 +1247,7 @@
     let ytApiReady = false;
     const pendingVideoLoads = new Map();
 
-    // キャッシュ済みのチャットiframe管理（DOM非破棄でタブ切替高速化）
+    // キャッシュ済みのチャットiframe管理
     const sidebarChatFrames = new Map();
     const parallelChatVideoIds = [null, null];
 
@@ -1273,9 +1287,16 @@
     let popupReqSeq = 0;
 
     window.addEventListener('message', (event) => {
-      if (event.source !== window) return;
+      if (event.source !== window || event.origin !== location.origin) return;
       const data = event.data;
-      if (!data || data.type !== 'OSHIMADO_OPEN_WATCH_POPUP_RES' || !data.requestId) return;
+      if (!data || typeof data.type !== 'string') return;
+
+      if (data.type === 'OSHIMADO_EXT_READY') {
+        isExtensionReady = true;
+        return;
+      }
+
+      if (data.type !== 'OSHIMADO_OPEN_WATCH_POPUP_RES' || !data.requestId) return;
 
       const pending = pendingPopupRequests.get(data.requestId);
       if (!pending) return;
@@ -1323,12 +1344,18 @@
         }
       };
 
+      // 拡張機能のハンドシェイク未確認時は待たずに即フォールバック
+      if (!isExtensionReady) {
+        fallbackOpen();
+        return;
+      }
+
       const requestId = `popup_${Date.now()}_${++popupReqSeq}`;
       const timeoutId = setTimeout(() => {
         if (!pendingPopupRequests.has(requestId)) return;
         pendingPopupRequests.delete(requestId);
         fallbackOpen();
-      }, 250);
+      }, 3000);
 
       pendingPopupRequests.set(requestId, {
         slotIdx,
@@ -1346,7 +1373,7 @@
           left,
           top
         },
-        '*'
+        location.origin
       );
     }
 
@@ -1385,9 +1412,14 @@
         pendingScreenshots.delete(requestId);
         if (shotBtn) shotBtn.classList.remove('is-capturing');
         showToast('拡張機能が未応答です（有効化後にページを再読込してください）');
-      }, 1500);
+      }, 2000);
 
-      pendingScreenshots.set(requestId, { slotIdx, timeoutId, shotBtn });
+      pendingScreenshots.set(requestId, {
+        slotIdx,
+        timeoutId,
+        shotBtn,
+        iframeWindow: iframe.contentWindow
+      });
 
       iframe.contentWindow.postMessage({
         type: 'OSHIMADO_CAPTURE_REQUEST',
@@ -1407,6 +1439,11 @@
 
       const pending = pendingScreenshots.get(data.requestId);
       if (!pending) return;
+
+      // 対象スロットの埋め込みプレイヤーiframeからの応答であることを厳密に検証
+      if (!pending.iframeWindow || event.source !== pending.iframeWindow) {
+        return;
+      }
 
       clearTimeout(pending.timeoutId);
       pendingScreenshots.delete(data.requestId);
@@ -1468,6 +1505,11 @@
       pendingVideoLoads.clear();
     };
 
+    function isSlotVisibleInLayout(slotIdx) {
+      const cap = LAYOUT_CAPACITY[currentLayout] || 2;
+      return slotIdx < cap && !slots[slotIdx].isHiddenByLayout;
+    }
+
     function mountOrLoadPlayer(slotIdx, videoId) {
       const slot = slots[slotIdx];
       if (!ytApiReady) {
@@ -1477,6 +1519,13 @@
 
       if (slot.player && slot.playerReady) {
         slot.player.loadVideoById(videoId);
+        if (!isSlotVisibleInLayout(slotIdx)) {
+          slot.isMuted = true;
+          try {
+            slot.player.mute();
+            slot.player.pauseVideo();
+          } catch (e) {}
+        }
         applySlotAudioState(slotIdx);
         return;
       }
@@ -1501,20 +1550,45 @@
           onReady: (event) => {
             slot.playerReady = true;
             event.target.setVolume(slot.volume);
-            if (slot.isMuted) {
+            if (!isSlotVisibleInLayout(slotIdx)) {
+              slot.isMuted = true;
               event.target.mute();
+              event.target.pauseVideo();
             } else {
-              event.target.unMute();
+              if (slot.isMuted) {
+                event.target.mute();
+              } else {
+                event.target.unMute();
+              }
+              event.target.playVideo();
             }
-            event.target.playVideo();
+            applySlotAudioState(slotIdx);
           },
           onStateChange: (event) => {
             if (event.data === YT.PlayerState.PLAYING) {
+              if (!isSlotVisibleInLayout(slotIdx)) {
+                try {
+                  event.target.mute();
+                  event.target.pauseVideo();
+                } catch (e) {}
+                return;
+              }
               try {
                 const data = event.target.getVideoData();
-                if (data && data.title && !slot.channelTitle) {
-                  slot.title = data.title;
-                  updateSlotHeader(slotIdx);
+                if (data) {
+                  let headerUpdated = false;
+                  if (data.title && !slot.title) {
+                    slot.title = data.title;
+                    headerUpdated = true;
+                  }
+                  if (data.author && !slot.channelTitle) {
+                    slot.channelTitle = data.author;
+                    headerUpdated = true;
+                  }
+                  if (headerUpdated) {
+                    updateSlotHeader(slotIdx);
+                    refreshChatViews();
+                  }
                 }
               } catch (e) {}
             }
@@ -1551,7 +1625,7 @@
     }
 
     function setSoloSlot(slotIdx) {
-      if (!slots[slotIdx].videoId) return;
+      if (!slots[slotIdx].videoId || !isSlotVisibleInLayout(slotIdx)) return;
 
       if (soloSlotIndex === slotIdx) {
         soloSlotIndex = null;
@@ -1563,19 +1637,23 @@
       soloSlotIndex = slotIdx;
       slots.forEach((s, idx) => {
         s.isMuted = (idx !== slotIdx);
+        if (s.isHiddenByLayout) {
+          s.savedMutedBeforeHide = true;
+        }
         applySlotAudioState(idx);
       });
     }
 
     function toggleSlotMute(slotIdx) {
       const slot = slots[slotIdx];
-      if (!slot.videoId) return;
+      if (!slot.videoId || !isSlotVisibleInLayout(slotIdx)) return;
 
       slot.isMuted = !slot.isMuted;
       if (slot.isMuted && soloSlotIndex === slotIdx) {
         soloSlotIndex = null;
       } else if (!slot.isMuted) {
-        const unmutedCount = slots.filter(s => s.videoId && !s.isMuted).length;
+        const cap = LAYOUT_CAPACITY[currentLayout] || 2;
+        const unmutedCount = slots.filter((s, i) => i < cap && s.videoId && !s.isMuted).length;
         soloSlotIndex = (unmutedCount === 1) ? slotIdx : null;
       }
       slots.forEach((_, idx) => applySlotAudioState(idx));
@@ -1584,7 +1662,7 @@
     function setSlotVolume(slotIdx, vol) {
       const slot = slots[slotIdx];
       slot.volume = Math.max(0, Math.min(100, Number(vol) || 0));
-      if (slot.volume > 0 && slot.isMuted) {
+      if (slot.volume > 0 && slot.isMuted && isSlotVisibleInLayout(slotIdx)) {
         slot.isMuted = false;
       }
       applySlotAudioState(slotIdx);
@@ -1594,14 +1672,36 @@
       soloSlotIndex = null;
       slots.forEach((s, idx) => {
         s.isMuted = true;
+        if (s.isHiddenByLayout) {
+          s.savedMutedBeforeHide = true;
+        }
         applySlotAudioState(idx);
       });
       showToast('全窓ミュートにしました');
     }
 
+    function unmuteAllSlots() {
+      const cap = LAYOUT_CAPACITY[currentLayout] || 2;
+      soloSlotIndex = null;
+      let unmutedCount = 0;
+      slots.forEach((s, idx) => {
+        if (idx < cap && s.videoId) {
+          s.isMuted = false;
+          unmutedCount++;
+        }
+        applySlotAudioState(idx);
+      });
+      if (unmutedCount > 0) {
+        showToast(`表示中の${unmutedCount}枠のミュートを解除しました`);
+      } else {
+        showToast('表示中の配信枠がありません');
+      }
+    }
+
     function playAllSlots() {
-      slots.forEach(s => {
-        if (s.videoId && s.player && s.playerReady) {
+      const cap = LAYOUT_CAPACITY[currentLayout] || 2;
+      slots.forEach((s, idx) => {
+        if (idx < cap && s.videoId && s.player && s.playerReady) {
           try { s.player.playVideo(); } catch (e) {}
         }
       });
@@ -1631,16 +1731,20 @@
       labelEl.title = text;
     }
 
-    function setSlotVideo(slotIdx, videoId, meta = {}) {
+    function setSlotVideo(slotIdx, videoId, meta = {}, options = {}) {
       if (!VIDEO_ID_REGEX.test(videoId)) return;
+      const { initialMuted = false, skipSideEffects = false } = options;
       const slot = slots[slotIdx];
       const activeCountBefore = slots.filter(s => Boolean(s.videoId)).length;
 
       slot.videoId = videoId;
       slot.channelTitle = meta.channelTitle || '';
       slot.title = meta.title || '';
+      slot.savedMutedBeforeHide = null;
 
-      if (activeCountBefore === 0) {
+      if (initialMuted || !isSlotVisibleInLayout(slotIdx)) {
+        slot.isMuted = true;
+      } else if (activeCountBefore === 0) {
         slot.isMuted = false;
         soloSlotIndex = slotIdx;
       } else if (soloSlotIndex !== slotIdx) {
@@ -1653,11 +1757,13 @@
       applySlotAudioState(slotIdx);
       mountOrLoadPlayer(slotIdx, videoId);
 
-      refreshChatViews();
-      syncUrlState();
+      if (!skipSideEffects) {
+        refreshChatViews();
+        syncUrlState();
+      }
     }
 
-    function clearSlot(slotIdx) {
+    function clearSlot(slotIdx, skipSideEffects = false) {
       const slot = slots[slotIdx];
       pendingVideoLoads.delete(slotIdx);
 
@@ -1673,6 +1779,7 @@
       slot.title = '';
       slot.channelTitle = '';
       slot.isMuted = true;
+      slot.savedMutedBeforeHide = null;
 
       if (soloSlotIndex === slotIdx) {
         soloSlotIndex = null;
@@ -1691,17 +1798,22 @@
         sidebarChatFrames.delete(slotIdx);
       }
 
-      refreshChatViews();
-      renderDrawer();
-      syncUrlState();
+      if (!skipSideEffects) {
+        refreshChatViews();
+        renderDrawer();
+        syncUrlState();
+      }
     }
 
     function clearAllSlots() {
       for (let i = 0; i < MAX_SLOTS; i++) {
-        if (slots[i].videoId) clearSlot(i);
+        if (slots[i].videoId) clearSlot(i, true);
       }
       mainSlotIndex = 0;
       applyLayoutVisibility();
+      refreshChatViews();
+      renderDrawer();
+      syncUrlState();
       showToast('全窓をクリアしました');
     }
 
@@ -1718,15 +1830,16 @@
         return;
       }
 
-      setSlotVideo(emptyIdx, videoId, meta);
-
-      const activeCount = slots.filter(s => Boolean(s.videoId)).length;
-      if (activeCount > (LAYOUT_CAPACITY[currentLayout] || 2)) {
-        setLayout(pickOptimalLayout(activeCount), false);
-      } else {
-        applyLayoutVisibility();
+      const requiredSlots = Math.max(
+        slots.filter(s => Boolean(s.videoId)).length + 1,
+        emptyIdx + 1
+      );
+      if (requiredSlots > (LAYOUT_CAPACITY[currentLayout] || 2)) {
+        setLayout(pickOptimalLayout(requiredSlots), false);
       }
 
+      setSlotVideo(emptyIdx, videoId, meta);
+      applyLayoutVisibility();
       renderDrawer();
     }
 
@@ -1738,28 +1851,38 @@
 
       if (replaceExisting) {
         for (let i = 0; i < MAX_SLOTS; i++) {
-          if (slots[i].videoId) clearSlot(i);
+          if (slots[i].videoId) clearSlot(i, true);
         }
         mainSlotIndex = 0;
       }
 
+      const newIds = videoIds.filter(vid => !slots.some(s => s.videoId === vid));
+      if (newIds.length === 0) {
+        showToast('指定された配信はすでにセット済みです');
+        return;
+      }
+
+      const currentCount = slots.filter(s => Boolean(s.videoId)).length;
+      const targetTotal = Math.min(MAX_SLOTS, currentCount + newIds.length);
+      if (targetTotal > (LAYOUT_CAPACITY[currentLayout] || 2)) {
+        setLayout(pickOptimalLayout(targetTotal), false);
+      }
+
       let added = 0;
-      for (const vid of videoIds) {
-        if (slots.some(s => s.videoId === vid)) continue;
+      for (const vid of newIds) {
         const emptyIdx = slots.findIndex(s => !s.videoId);
         if (emptyIdx === -1) break;
         const foundLive = scheduleLives.find(item => item.videoId === vid);
         setSlotVideo(emptyIdx, vid, foundLive ? {
           channelTitle: foundLive.channelTitle,
           title: foundLive.title
-        } : {});
+        } : {}, { skipSideEffects: true });
         added++;
       }
 
-      const activeCount = slots.filter(s => Boolean(s.videoId)).length;
-      if (activeCount > 0) {
-        setLayout(pickOptimalLayout(activeCount), false);
-      }
+      applyLayoutVisibility();
+      refreshChatViews();
+      syncUrlState();
       renderDrawer();
       if (added > 0) {
         showToast(`${added}枠をセットしました`);
@@ -1774,25 +1897,28 @@
       }
 
       for (let i = 0; i < MAX_SLOTS; i++) {
-        if (slots[i].videoId) clearSlot(i);
+        if (slots[i].videoId) clearSlot(i, true);
       }
       mainSlotIndex = 0;
 
       const targets = liveItems.slice(0, MAX_SLOTS);
+      setLayout(pickOptimalLayout(targets.length), false);
+
       targets.forEach((item, idx) => {
         setSlotVideo(idx, item.videoId, {
           channelTitle: item.channelTitle,
           title: item.title
-        });
+        }, { skipSideEffects: true });
       });
 
-      setLayout(pickOptimalLayout(targets.length), false);
+      refreshChatViews();
+      syncUrlState();
       renderDrawer();
       closeDrawer();
       showToast(`配信中 ${targets.length}枠を一括展開しました`);
     }
 
-    /* ===== レイアウト制御（DOM非破棄） ===== */
+    /* ===== レイアウト制御（DOM非破棄＋非表示枠の停止・音声退避） ===== */
     function pickOptimalLayout(count) {
       if (count <= 2) return '2chat';
       if (count <= 4) return '2x2';
@@ -1805,11 +1931,60 @@
         mainSlotIndex = 0;
       }
 
-      slots.forEach((_, idx) => {
+      slots.forEach((slot, idx) => {
+        const willHide = idx >= cap;
+        const wasHidden = slot.isHiddenByLayout;
+        slot.isHiddenByLayout = willHide;
+
         const cardEl = document.getElementById(`slot-${idx}`);
-        cardEl.classList.toggle('is-hidden-by-layout', idx >= cap);
+        cardEl.classList.toggle('is-hidden-by-layout', willHide);
         cardEl.classList.toggle('is-main-slot', idx === mainSlotIndex);
+
+        if (!wasHidden && willHide) {
+          // 可視 -> 非表示：元のミュート状態を退避して停止＆ミュート
+          slot.savedMutedBeforeHide = slot.isMuted;
+          slot.isMuted = true;
+          if (slot.videoId && slot.player && slot.playerReady) {
+            try {
+              slot.player.mute();
+              slot.player.pauseVideo();
+            } catch (e) {}
+          }
+          applySlotAudioState(idx);
+        } else if (wasHidden && !willHide) {
+          // 非表示 -> 可視：元のミュート状態を復帰して再生再開
+          if (slot.savedMutedBeforeHide !== null) {
+            slot.isMuted = slot.savedMutedBeforeHide;
+            slot.savedMutedBeforeHide = null;
+          }
+          if (slot.videoId && slot.player && slot.playerReady) {
+            try {
+              slot.player.playVideo();
+            } catch (e) {}
+          }
+          applySlotAudioState(idx);
+        }
       });
+
+      // ソロ音声枠が非表示側へ移動した場合、可視枠（メイン枠優先）へ自動移譲
+      if (soloSlotIndex !== null && soloSlotIndex >= cap) {
+        const prevSoloIdx = soloSlotIndex;
+        slots[prevSoloIdx].savedMutedBeforeHide = true;
+
+        let delegateIdx = -1;
+        if (mainSlotIndex < cap && slots[mainSlotIndex].videoId) {
+          delegateIdx = mainSlotIndex;
+        } else {
+          delegateIdx = slots.findIndex((s, idx) => idx < cap && Boolean(s.videoId));
+        }
+
+        if (delegateIdx !== -1) {
+          setSoloSlot(delegateIdx);
+        } else {
+          soloSlotIndex = null;
+          slots.forEach((_, idx) => applySlotAudioState(idx));
+        }
+      }
     }
 
     function setLayout(layoutName, shouldSyncUrl = true) {
@@ -1829,19 +2004,23 @@
     }
 
     function swapMainSlot(targetIdx) {
-      if (targetIdx < 0 || targetIdx >= MAX_SLOTS || !slots[targetIdx].videoId) return;
+      const cap = LAYOUT_CAPACITY[currentLayout] || 2;
+      if (targetIdx < 0 || targetIdx >= cap || !slots[targetIdx].videoId) return;
       mainSlotIndex = targetIdx;
       applyLayoutVisibility();
       setSoloSlot(targetIdx);
+      syncUrlState();
     }
 
-    /* ===== ライブチャット制御（本番ドメイン自動付与） ===== */
+    /* ===== ライブチャット制御（非表示時は通信停止） ===== */
     function buildChatEmbedUrl(videoId) {
       const domain = location.hostname || 'localhost';
       return `https://www.youtube.com/live_chat?v=${encodeURIComponent(videoId)}&embed_domain=${encodeURIComponent(domain)}&dark_theme=1`;
     }
 
     function refreshChatViews() {
+      const cap = LAYOUT_CAPACITY[currentLayout] || 2;
+
       // 1. 並列チャット（2chatレイアウト用：スロット0と1）
       for (let i = 0; i < 2; i++) {
         const slot = slots[i];
@@ -1851,7 +2030,14 @@
           ? `💬 #${i + 1} ${slot.channelTitle || slot.videoId}`
           : `💬 #${i + 1} チャット`;
 
-        if (currentLayout !== '2chat') continue;
+        // 2chat以外のレイアウトでは並列チャットiframeを破棄して通信を止める
+        if (currentLayout !== '2chat') {
+          if (parallelChatVideoIds[i] !== null) {
+            wrapEl.innerHTML = `<div class="chat-empty-msg">#${i + 1} に配信をセットするとチャットが表示されます</div>`;
+            parallelChatVideoIds[i] = null;
+          }
+          continue;
+        }
 
         if (!slot.videoId) {
           if (parallelChatVideoIds[i] !== null) {
@@ -1869,23 +2055,35 @@
       }
 
       // 2. 右サイドバーチャットタブ更新
+      if (currentLayout === '2chat' || !isChatSidebarOpen) {
+        sidebarChatFrames.forEach(frame => frame.remove());
+        sidebarChatFrames.clear();
+        return;
+      }
+
       const activeIndices = [];
       slots.forEach((s, idx) => {
         const tabBtn = document.querySelector(`.chat-tab[data-chat-slot="${idx}"]`);
-        const hasVid = Boolean(s.videoId);
-        tabBtn.disabled = !hasVid;
-        tabBtn.title = hasVid ? (s.channelTitle || s.title || s.videoId) : '未セット';
-        if (hasVid) activeIndices.push(idx);
+        const isAvailable = idx < cap && Boolean(s.videoId);
+        tabBtn.disabled = !isAvailable;
+        tabBtn.title = isAvailable ? (s.channelTitle || s.title || s.videoId) : '未セット';
+        if (isAvailable) {
+          activeIndices.push(idx);
+        } else if (sidebarChatFrames.has(idx)) {
+          sidebarChatFrames.get(idx).remove();
+          sidebarChatFrames.delete(idx);
+        }
       });
 
       if (activeIndices.length === 0) {
-        sidebarChatFrames.forEach(frame => frame.classList.remove('is-active'));
+        sidebarChatFrames.forEach(frame => frame.remove());
+        sidebarChatFrames.clear();
         document.getElementById('sidebar-chat-empty').style.display = 'flex';
         return;
       }
 
       document.getElementById('sidebar-chat-empty').style.display = 'none';
-      if (!slots[activeSidebarChatSlot].videoId) {
+      if (!activeIndices.includes(activeSidebarChatSlot)) {
         activeSidebarChatSlot = activeIndices[0];
       }
 
@@ -1893,8 +2091,9 @@
     }
 
     function selectSidebarChatTab(slotIdx) {
+      const cap = LAYOUT_CAPACITY[currentLayout] || 2;
       const slot = slots[slotIdx];
-      if (!slot || !slot.videoId) return;
+      if (!slot || !slot.videoId || slotIdx >= cap) return;
       activeSidebarChatSlot = slotIdx;
 
       document.querySelectorAll('.chat-tab').forEach(btn => {
@@ -1928,6 +2127,7 @@
       isChatSidebarOpen = !isChatSidebarOpen;
       document.getElementById('chat-sidebar').classList.toggle('is-collapsed', !isChatSidebarOpen);
       document.getElementById('btn-toggle-chat').classList.toggle('btn-primary', isChatSidebarOpen);
+      refreshChatViews();
     }
 
     /* ===== 「推しスケ！」キャッシュ共有＆API連携 ===== */
@@ -1947,22 +2147,43 @@
     async function fetchLatestSchedule() {
       const statusEl = document.getElementById('drawer-sync-status');
       statusEl.textContent = 'GAS APIから最新枠を取得中...';
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
       try {
-        const res = await fetch(`${GAS_API_URL}?t=${Date.now()}`);
+        const res = await fetch(`${GAS_API_URL}?mode=lives&t=${Date.now()}`, {
+          signal: controller.signal
+        });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (!data || !Array.isArray(data.lives)) throw new Error('Invalid payload');
 
         applySchedulePayload(data, `同期完了 (${data.lastUpdated || '最新'})`);
         try {
+          let existingPayload = {};
+          const prevRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
+          if (prevRaw) {
+            const prevParsed = JSON.parse(prevRaw);
+            if (prevParsed && prevParsed.payload && typeof prevParsed.payload === 'object') {
+              existingPayload = prevParsed.payload;
+            }
+          }
+          const mergedPayload = Object.assign({}, existingPayload, data);
+          if (!Array.isArray(data.channels) && Array.isArray(existingPayload.channels)) {
+            mergedPayload.channels = existingPayload.channels;
+          }
           localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify({
             schemaVersion: 9,
             savedAtMs: Date.now(),
-            payload: data
+            payload: mergedPayload
           }));
         } catch (e) {}
       } catch (err) {
-        statusEl.textContent = `最新取得失敗（キャッシュ表示中）: ${err.message}`;
+        const errMsg = (err && err.name === 'AbortError') ? 'タイムアウト' : (err.message || '通信エラー');
+        statusEl.textContent = `最新取得失敗（キャッシュ表示中）: ${errMsg}`;
+      } finally {
+        clearTimeout(timeoutId);
       }
     }
 
@@ -2083,17 +2304,26 @@
       document.getElementById('btn-toggle-drawer').classList.remove('is-active');
     }
 
-    /* ===== URLパラメータ同期＆共有 ===== */
+    /* ===== URLパラメータ同期＆共有（空き枠位置・メイン枠を保持） ===== */
     function syncUrlState() {
       try {
-        const activeIds = slots.map(s => s.videoId).filter(Boolean);
+        const rawTokens = slots.map(s => s.videoId || '-');
+        while (rawTokens.length > 0 && rawTokens[rawTokens.length - 1] === '-') {
+          rawTokens.pop();
+        }
         const url = new URL(location.href);
-        if (activeIds.length > 0) {
-          url.searchParams.set('v', activeIds.join(','));
+        if (rawTokens.length > 0) {
+          url.searchParams.set('v', rawTokens.join(','));
           url.searchParams.set('layout', currentLayout);
+          if (mainSlotIndex > 0) {
+            url.searchParams.set('main', String(mainSlotIndex + 1));
+          } else {
+            url.searchParams.delete('main');
+          }
         } else {
           url.searchParams.delete('v');
           url.searchParams.delete('layout');
+          url.searchParams.delete('main');
         }
         history.replaceState(null, '', url.pathname + url.search);
       } catch (e) {}
@@ -2126,6 +2356,7 @@
       document.getElementById('btn-open-all-live').addEventListener('click', openAllLiveStreams);
 
       document.getElementById('btn-mute-all').addEventListener('click', muteAllSlots);
+      document.getElementById('btn-unmute-all').addEventListener('click', unmuteAllSlots);
       document.getElementById('btn-play-all').addEventListener('click', playAllSlots);
       document.getElementById('btn-pause-all').addEventListener('click', pauseAllSlots);
       document.getElementById('btn-toggle-chat').addEventListener('click', toggleChatSidebar);
@@ -2231,6 +2462,7 @@
         }
         const k = e.key.toLowerCase();
         if (k === 'm') muteAllSlots();
+        else if (k === 'u') unmuteAllSlots();
         else if (k === 'c') toggleChatSidebar();
         else if (k === 'd') isDrawerOpen ? closeDrawer() : openDrawer();
         else if (k === 'f') toggleImmersiveMode();
@@ -2242,30 +2474,54 @@
       setupEvents();
       document.getElementById('btn-toggle-chat').classList.add('btn-primary');
 
+      // 拡張機能へ起動確認PINGを送信（既にREADY済の場合も再通知させる）
+      try {
+        window.postMessage({ type: 'OSHIMADO_EXT_PING' }, location.origin);
+      } catch (e) {}
+
       loadCachedSchedule();
       fetchLatestSchedule();
 
-      // URLパラメータ復元 (?v=ID1,ID2&layout=2chat)
+      // URLパラメータ復元 (?v=ID1,-,ID2&layout=2chat&main=2) ※初回は全枠ミュートで開始
       const params = new URLSearchParams(location.search);
       const initialLayout = params.get('layout');
       const vParam = params.get('v');
+      const mainParam = Number(params.get('main'));
+
+      if (Number.isInteger(mainParam) && mainParam >= 1 && mainParam <= MAX_SLOTS) {
+        mainSlotIndex = mainParam - 1;
+      }
 
       if (vParam) {
-        const ids = extractVideoIds(vParam).slice(0, MAX_SLOTS);
-        ids.forEach((vid, idx) => {
+        const tokens = vParam.split(/[\s,、]+/).slice(0, MAX_SLOTS);
+        let maxSlotIdx = -1;
+        let restoredCount = 0;
+
+        tokens.forEach((token, idx) => {
+          if (!token || token === '-') return;
+          const extracted = extractVideoIds(token);
+          const vid = extracted[0];
+          if (!vid) return;
+
           const found = scheduleLives.find(item => item.videoId === vid);
           setSlotVideo(idx, vid, found ? {
             channelTitle: found.channelTitle,
             title: found.title
-          } : {});
+          } : {}, { initialMuted: true, skipSideEffects: true });
+
+          maxSlotIdx = idx;
+          restoredCount++;
         });
+
+        const requiredSlots = Math.max(restoredCount, maxSlotIdx + 1, mainSlotIndex + 1);
         if (initialLayout && LAYOUT_CAPACITY[initialLayout]) {
           setLayout(initialLayout, false);
-        } else if (ids.length > 0) {
-          setLayout(pickOptimalLayout(ids.length), false);
+        } else if (requiredSlots > 0) {
+          setLayout(pickOptimalLayout(requiredSlots), false);
         } else {
           setLayout('2chat', false);
         }
+        refreshChatViews();
       } else {
         setLayout('2chat', false);
       }
