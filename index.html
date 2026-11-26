@@ -17,6 +17,7 @@
       --live-red: #ff0033;
       --live-glow: rgba(255, 0, 51, 0.28);
       --upcoming-blue: #3ea6ff;
+      --warn-amber: #fbbf24;
       --border-subtle: #2c2c30;
     }
 
@@ -95,6 +96,11 @@
     .status-live {
       color: #ff4d6d;
       font-weight: 700;
+    }
+
+    .status-warn {
+      color: var(--warn-amber);
+      font-weight: 600;
     }
 
     .launcher-grid {
@@ -297,28 +303,126 @@
   </div>
 
   <script>
-    (function showCachedSummary() {
-      try {
-        if (!window.localStorage) return;
-        const raw = window.localStorage.getItem('yt_live_schedule_cache_v9');
-        if (!raw) return;
-        const parsed = JSON.parse(raw);
-        if (!parsed || !parsed.payload || !Array.isArray(parsed.payload.lives)) return;
+    (function initPortalSummary() {
+      const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbzKEjdp1EPCZ_8jCAvaGfTdOA9kCVBnau0XdnR9-uuj7kYlAbqp-jRQrAouMQnUSqPs/exec';
+      const LOCAL_STORAGE_KEY = 'yt_live_schedule_cache_v9';
+      const SUMMARY_TIMEOUT_MS = 12000;
+      const strip = document.getElementById('cache-status-strip');
 
-        const lives = parsed.payload.lives;
-        const liveCount = lives.filter(item => item.status === 'live').length;
-        const upcomingCount = lives.filter(item => item.status !== 'live').length;
-        const updated = parsed.payload.lastUpdated || '';
+      function escapeHtml(str) {
+        return String(str === null || str === undefined ? '' : str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
 
-        const strip = document.getElementById('cache-status-strip');
-        if (!strip) return;
-        strip.innerHTML = `
-          <span class="status-live">● 配信中: ${liveCount}件</span>
-          <span>予定: ${upcomingCount}件</span>
-          ${updated ? `<span>キャッシュ更新: ${String(updated).replace(/[<>&"']/g, '')}</span>` : ''}
-        `;
+      function extractSummary(data) {
+        if (!data || typeof data !== 'object') return null;
+
+        let liveCount = null;
+        let upcomingCount = null;
+        let channelCount = null;
+
+        if (Array.isArray(data.lives)) {
+          liveCount = data.lives.filter(item => item.status === 'live').length;
+          upcomingCount = data.lives.filter(item => item.status !== 'live').length;
+        } else {
+          if (typeof data.liveCount === 'number') liveCount = data.liveCount;
+          if (typeof data.upcomingCount === 'number') upcomingCount = data.upcomingCount;
+        }
+
+        if (Array.isArray(data.channels)) {
+          channelCount = data.channels.length;
+        } else if (typeof data.channelCount === 'number') {
+          channelCount = data.channelCount;
+        }
+
+        if (liveCount === null && upcomingCount === null) return null;
+
+        return {
+          liveCount: liveCount !== null ? liveCount : 0,
+          upcomingCount: upcomingCount !== null ? upcomingCount : 0,
+          channelCount: channelCount,
+          lastUpdated: data.lastUpdated ? String(data.lastUpdated) : '',
+          updateStatus: data.updateStatus ? String(data.updateStatus) : 'success'
+        };
+      }
+
+      function renderSummaryStrip(summary, sourceLabel) {
+        if (!strip || !summary) return;
+
+        const parts = [
+          `<span class="status-live">● 配信中: ${summary.liveCount}件</span>`,
+          `<span>予定: ${summary.upcomingCount}件</span>`
+        ];
+
+        if (typeof summary.channelCount === 'number' && summary.channelCount > 0) {
+          parts.push(`<span>登録Ch: ${summary.channelCount}件</span>`);
+        }
+
+        if (summary.lastUpdated) {
+          parts.push(`<span>${escapeHtml(sourceLabel)}: ${escapeHtml(summary.lastUpdated)}</span>`);
+        }
+
+        if (summary.updateStatus === 'failed' || summary.updateStatus === 'partial') {
+          parts.push(`<span class="status-warn">⚠ 一部取得エラーあり</span>`);
+        }
+
+        strip.innerHTML = parts.join('');
         strip.style.display = 'inline-flex';
+      }
+
+      // 1. localStorage キャッシュから即座に初期表示
+      let cachedSummary = null;
+      try {
+        if (window.localStorage) {
+          const raw = window.localStorage.getItem(LOCAL_STORAGE_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed && parsed.payload) {
+              cachedSummary = extractSummary(parsed.payload);
+              if (cachedSummary) {
+                renderSummaryStrip(cachedSummary, 'キャッシュ更新');
+              }
+            }
+          }
+        }
       } catch (e) {}
+
+      // 2. 軽量サマリーAPI (?mode=summary) からバックグラウンド最新取得
+      async function fetchLightweightSummary() {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), SUMMARY_TIMEOUT_MS);
+
+        try {
+          const res = await fetch(`${GAS_API_URL}?mode=summary&t=${Date.now()}`, {
+            signal: controller.signal
+          });
+          if (!res.ok) return;
+          const data = await res.json();
+          const latestSummary = extractSummary(data);
+          if (!latestSummary) return;
+
+          // 既存キャッシュに channelCount があって軽量応答に無い場合は補完
+          if (
+            latestSummary.channelCount === null &&
+            cachedSummary &&
+            typeof cachedSummary.channelCount === 'number'
+          ) {
+            latestSummary.channelCount = cachedSummary.channelCount;
+          }
+
+          renderSummaryStrip(latestSummary, '最新更新');
+        } catch (e) {
+          // 通信失敗時はキャッシュ表示をそのまま維持
+        } finally {
+          clearTimeout(timeoutId);
+        }
+      }
+
+      fetchLightweightSummary();
     })();
   </script>
 </body>
