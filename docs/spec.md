@@ -26,7 +26,7 @@
    * 拡張機能 `content.js` の `closeLiveChatIfOpen()` は、チャット開閉ボタンクリック直後に `collapsed` 属性を同期判定するため、YouTube側のDOM更新が1ティック遅れる場合は `MutationObserver` / 400msポーリングの次サイクルで完了確定します（動作上の支障なし）。
  4. **カラーコードの統一**:
     
-&emsp;**Live中**
+- **Live中**
 | 用途 | 色見本 | カラーコード |
 |---|---|---|
 | &emsp;カード枠線（2px） | ![](https://placehold.co/14x14/ff0033/ff0033.png) | `#ff0033`（`--live-red`） |
@@ -34,26 +34,26 @@
 | 「LIVE」バッジの背景 | ![](https://placehold.co/14x14/ff0033/ff0033.png) | `#ff0033`、文字は `#ffffff` |
 | 開始時刻の文字色 | ![](https://placehold.co/14x14/ff4d6d/ff4d6d.png) | `#ff4d6d` |
 
-   **まもなく配信開始（開始30分以内）**
-   | 用途 | 色見本 | カラーコード |
-   |---|---|---|
-   | カード枠線（1.5px） | ![](https://placehold.co/14x14/c49724/c49724.png) | `rgba(251, 191, 36, 0.75)`（`#fbbf24`＝`--warn-amber` の75%） |
-   | カードの光彩 | ![](https://placehold.co/14x14/413822/413822.png) | `rgba(251, 191, 36, 0.16)` |
-   | 開始時刻の文字色 | ![](https://placehold.co/14x14/fbbf24/fbbf24.png) | `#fbbf24` |
+- **まもなく配信開始（開始30分以内）**
+| 用途 | 色見本 | カラーコード |
+|---|---|---|
+| カード枠線（1.5px） | ![](https://placehold.co/14x14/c49724/c49724.png) | `rgba(251, 191, 36, 0.75)`（`#fbbf24`＝`--warn-amber` の75%） |
+| カードの光彩 | ![](https://placehold.co/14x14/413822/413822.png) | `rgba(251, 191, 36, 0.16)` |
+| 開始時刻の文字色 | ![](https://placehold.co/14x14/fbbf24/fbbf24.png) | `#fbbf24` |
 
-   **メン限枠**
-   | 用途 | 色見本 | カラーコード |
-   |---|---|---|
-   | カード枠線（2.5px。Live 中でないとき） | ![](https://placehold.co/14x14/256932/256932.png) | `rgba(43, 166, 64, 0.55)`（`#2ba640` の55%） |
-   | 「メン限」バッジの文字色 | ![](https://placehold.co/14x14/2ba640/2ba640.png) | `#2ba640`（背景は `rgba(15, 15, 15, 0.9)`） |
-   | 「メン限」バッジの枠線 | ![](https://placehold.co/14x14/267636/267636.png) | `rgba(43, 166, 64, 0.65)` |
-   | 開始時刻の文字色 | ![](https://placehold.co/14x14/2ba640/2ba640.png) | `#2ba640` |
+- **メン限枠**
+| 用途 | 色見本 | カラーコード |
+|---|---|---|
+| カード枠線（2.5px。Live 中でないとき） | ![](https://placehold.co/14x14/256932/256932.png) | `rgba(43, 166, 64, 0.55)`（`#2ba640` の55%） |
+| 「メン限」バッジの文字色 | ![](https://placehold.co/14x14/2ba640/2ba640.png) | `#2ba640`（背景は `rgba(15, 15, 15, 0.9)`） |
+| 「メン限」バッジの枠線 | ![](https://placehold.co/14x14/267636/267636.png) | `rgba(43, 166, 64, 0.65)` |
+| 開始時刻の文字色 | ![](https://placehold.co/14x14/2ba640/2ba640.png) | `#2ba640` |
 
-   **一般枠**
-   | 用途 | 色見本 | カラーコード |
-   |---|---|---|
-   | 「配信予定」バッジの文字色 | ![](https://placehold.co/14x14/3ea6ff/3ea6ff.png) | `#3ea6ff`（`--upcoming-blue`） |
-   | 開始時刻の文字色 | ![](https://placehold.co/14x14/3ea6ff/3ea6ff.png) | `#3ea6ff`（`--upcoming-blue`） |
+- **一般枠**
+| 用途 | 色見本 | カラーコード |
+|---|---|---|
+| 「配信予定」バッジの文字色 | ![](https://placehold.co/14x14/3ea6ff/3ea6ff.png) | `#3ea6ff`（`--upcoming-blue`） |
+| 開始時刻の文字色 | ![](https://placehold.co/14x14/3ea6ff/3ea6ff.png) | `#3ea6ff`（`--upcoming-blue`） |
 
 
 ### 設計上の割り切り（レビュー対応見送り・判断記録）
