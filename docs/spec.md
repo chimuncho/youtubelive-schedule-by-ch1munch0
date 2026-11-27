@@ -26,7 +26,7 @@
    * 拡張機能 `content.js` の `closeLiveChatIfOpen()` は、チャット開閉ボタンクリック直後に `collapsed` 属性を同期判定するため、YouTube側のDOM更新が1ティック遅れる場合は `MutationObserver` / 400msポーリングの次サイクルで完了確定します（動作上の支障なし）。
  4. **カラーコードの統一**:
     
-- Live中
+- **Live中**
 
 | 用途 | 色見本 | カラーコード |
 |---|---|---|
