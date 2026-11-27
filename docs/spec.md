@@ -8,7 +8,6 @@
   * **フロントエンド**: `index.html`, `oshisuke.html`, `oshimado.html`
   * **Chrome拡張機能 (`oshimado-ss`)**: `manifest.json`, `background.js`, `content.js`
   * **ブックマークレット**: `ブックマークレット.txt`
-* **検証ステータス**: **全ステップ（STEP1〜STEP4）突合完了・最終レビュー対応反映済み**
 
 ---
 
