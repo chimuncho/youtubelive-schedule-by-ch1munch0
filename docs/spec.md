@@ -1,4 +1,4 @@
-[推しスケ！＆推しマド！完全版仕様台帳.md](https://github.com/user-attachments/files/35494081/default.md)
+[推しスケ！＆推しマド！完全版仕様台帳.md](https://github.com/user-attachments/files/35496302/default.md)
 # 推しスケ！＆推しマド！ 統合仕様台帳（全ステップ完全版）
 
 * **対象プロジェクト**: `youtubelive-schedule-by-ch1munch0`（推しスケ！＆推しマド！）
@@ -38,9 +38,10 @@
 | **キャッシュキー (配信枠)** | `'oshisuke_lives_cache_v8'` | `config.js` (`CACHE_KEYS.LIVES`) | `index.html`, `oshisuke.html`, `oshimado.html`（GitHub Pages `localStorage`） | **全箇所一致** |
 | **キャッシュキー (全件)** | `'oshisuke_full_cache_v8'` | `config.js` (`CACHE_KEYS.FULL`) | `index.html`, `oshisuke.html`, `oshimado.html`（GitHub Pages `localStorage`） | **全箇所一致** |
 | **キャッシュキー (BMタグ)** | `'oshisuke_bm_tags_cache_v2'` | `config.js` (`CACHE_KEYS.BM_TAGS`) | `ブックマークレット.txt` (`CFG.BM_CACHE_KEY`、YouTube `localStorage`) | **全箇所一致** |
-| **旧キャッシュ互換キー** | `'yt_live_schedule_cache_v9'`, `'v8'` | `oshisuke.html`, `oshimado.html` | 読込フォールバックおよび移行削除用 | **実装済み** |
+| **旧キャッシュ互換キー** | `'yt_live_schedule_cache_v9'`, `'v8'` | `oshisuke.html`, `oshimado.html` | 読込フォールバックおよび読込直後の `localStorage.removeItem` 移行削除用（`oshisuke.html` / `oshimado.html` 共通） | **実装済み** |
 | **自動更新間隔** | `180000` ms（3分） | `config.js` (`AUTO_REFRESH_INTERVAL_MS`) | `oshisuke.html`, `oshimado.html`（タイマー・タブ復帰時経過判定） | **全箇所一致** |
 | **`New` バッジ表示上限** | `4`（`seenCount <= 4`） | `config.js` (`NEW_BADGE_MAX_SEEN`) / GAS `CONFIG` | `oshisuke.html`, `oshimado.html`, `コード.txt` | **全箇所一致** |
+| **タグ自動折りたたみ閾値** | `localCount < 3`（対象件数3件未満で折りたたみ） | `oshisuke.html`（タグ一覧描画判定） | `oshisuke.html`（`auto` 設定サブタグの初期折りたたみ制御） | **実装済み** |
 | **手動登録トークン** | キー名: `'ADMIN_SECRET_TOKEN'` | GAS `ScriptProperties` | `コード.txt` (`doPost` 検証)、`ブックマークレット.txt` (`CFG.TOKEN`) | **実装済み** |
 
 ### 2-2. バックエンド API 仕様（GAS `doGet` / `doPost`）
@@ -70,7 +71,7 @@
 | 画面 / 機能 | 仕様・制御内容 | ステータス |
 | :--- | :--- | :--- |
 | **ポータル (`index.html`)** | `FULL` / `LIVES` のうち `savedAtMs` が新しいキャッシュで0秒初期描画後、`?mode=summary` で上部ステータスストリップ（配信中/予定/Ch数/更新日時/異常警告）を非同期更新。 | **実装済み** |
-| **推しスケ！ (`oshisuke.html`)** | ・2ビュー切替（配信スケジュール / チャンネル一覧 `#channels`）・遅延ロード<br>・2階層タグ（メイン/サブ）の動的抽出＆表示対象件数ベースのローカル折りたたみ（`computeLocalFolded`）<br>・再読込クールダウン（`5000`ms）、異常/鮮度低下（30分）/停止疑い（45分）バッジ表示、イベント委譲による画像エラー処理（CSP親和性）。 | **実装済み** |
+| **推しスケ！ (`oshisuke.html`)** | ・2ビュー切替（配信スケジュール / チャンネル一覧 `#channels`）・遅延ロード<br>・2階層タグ（メイン/サブ）の動的抽出＆表示対象件数閾値（`localCount < 3`）による自動折りたたみ<br>・再読込クールダウン（`5000`ms）、異常/鮮度低下（30分）/停止疑い（45分）バッジ表示、イベント委譲による画像エラー処理（CSP親和性）。 | **実装済み** |
 | **推しマド！ (`oshimado.html`)** | ・5レイアウト（`1x2`, `2chat`, `2x2`, `1plus3`, `3x2`）のDOM非破棄CSS Grid切替（`2chat` 下段は `minmax(min(425px, 54%), 1.1fr)` 確保）<br>・縮小レイアウト時の非表示枠自動停止＆ミュート退避、ソロ音声の可視枠自動移譲、チャット非表示時の `iframe` 破棄<br>・ショートカット（`1`〜`6`: ソロ、`M`: 全ミュート、`U`: 全ミュート解除、`C`: チャット、`D`: ドロワー、`F`: 没入）<br>・URL状態同期（`?v=ID1,-,ID2&layout=...&main=1..6`）＆復元時初期全枠ミュート。 | **実装済み** |
 
 ### 2-5. Chrome拡張機能（`oshimado-ss` v1.3.2）連携プロトコル仕様
@@ -89,7 +90,7 @@
 
 各ファイル内の全変数・定数・関数のデータ受け渡し（送り先・取得元）の網羅的記録は、以下の各ステップ記録ファイルに格納されています。
 
-* **STEP 1 記録 (`ステップ1 仕様台帳＆詳細記録.md`)**: `config.js`、`コード.txt`（GAS全35関数）、`readme.md`
-* **STEP 2 記録 (`ステップ2 仕様台帳＆詳細記録.md`)**: `index.html`（全2関数）、`oshisuke.html`（全9関数群）、`oshimado.html`（全12関数群）
+* **STEP 1 記録 (`ステップ1 仕様台帳＆詳細記録.md`)**: `config.js`、`コード.txt`（GAS全42関数）、`readme.md`
+* **STEP 2 記録 (`ステップ2 仕様台帳＆詳細記録.md`)**: `index.html`（全6関数）、`oshisuke.html`（全9関数群）、`oshimado.html`（全12関数群）
 * **STEP 3 記録 (`ステップ3 仕様台帳＆詳細記録.md`)**: `manifest.json`、`background.js`（全6関数・リスナー）、`content.js`（全12関数・ブロック）
 * **STEP 4 記録 (`ステップ4 仕様台帳＆詳細記録.md`)**: `ブックマークレット.txt`（全9関数・リスナー）
