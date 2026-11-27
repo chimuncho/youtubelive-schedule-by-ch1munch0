@@ -1206,6 +1206,7 @@
     const FULL_CACHE_KEY = (APP_CFG.CACHE_KEYS && APP_CFG.CACHE_KEYS.FULL) || 'oshisuke_full_cache_v8';
     const AUTO_REFRESH_INTERVAL_MS = Number(APP_CFG.AUTO_REFRESH_INTERVAL_MS) || (3 * 60 * 1000);
     const NEW_BADGE_MAX_SEEN = Number(APP_CFG.NEW_BADGE_MAX_SEEN) || 4;
+    const MANUAL_RELOAD_COOLDOWN_MS = 5000;
     const MIN_AUTO_FETCH_GAP_MS = 15000;
     const FETCH_TIMEOUT_MS = 15000;
     const MAX_SLOTS = 6;
@@ -1263,6 +1264,9 @@
     let tagMeta = [];
     let drawerSelectedTag = 'ALL';
     let drawerOnlyLive = false;
+    let isFetching = false;
+    let refreshCooldownUntilMs = 0;
+    let refreshCooldownTimerId = null;
     let lastFetchAttemptAt = 0;
     let lastSuccessfulFetchAt = 0;
     let autoRefreshTimerId = null;
@@ -2032,7 +2036,9 @@
       if (targetIdx < 0 || targetIdx >= cap || !slots[targetIdx].videoId) return;
       mainSlotIndex = targetIdx;
       applyLayoutVisibility();
-      setSoloSlot(targetIdx);
+      if (soloSlotIndex !== targetIdx) {
+        setSoloSlot(targetIdx);
+      }
       syncUrlState();
     }
 
@@ -2177,12 +2183,56 @@
       const candidates = [livesWrapper, fullWrapper, legacyWrapper].filter(Boolean);
       candidates.sort((a, b) => (Number(b.savedAtMs) || 0) - (Number(a.savedAtMs) || 0));
 
+      let loaded = false;
       if (candidates.length > 0) {
         const latest = candidates[0].payload;
         applySchedulePayload(latest, `キャッシュ表示 (${latest.lastUpdated || '取得済'})`);
-        return true;
+        loaded = true;
       }
-      return false;
+
+      try {
+        localStorage.removeItem('yt_live_schedule_cache_v9');
+        localStorage.removeItem('yt_live_schedule_cache_v8');
+      } catch (e) {}
+
+      return loaded;
+    }
+
+    function updateRefreshButtonState() {
+      const btn = document.getElementById('btn-refresh-api');
+      if (!btn) return;
+
+      if (isFetching) {
+        btn.disabled = true;
+        btn.textContent = '🔄 取得中...';
+        return;
+      }
+
+      const remainMs = refreshCooldownUntilMs - Date.now();
+      if (remainMs > 0) {
+        btn.disabled = true;
+        const sec = Math.ceil(remainMs / 1000);
+        btn.textContent = `🔄 最新取得 (${sec}s)`;
+      } else {
+        btn.disabled = false;
+        btn.textContent = '🔄 最新取得';
+      }
+    }
+
+    function startRefreshCooldown(durationMs = MANUAL_RELOAD_COOLDOWN_MS) {
+      refreshCooldownUntilMs = Date.now() + durationMs;
+      if (refreshCooldownTimerId !== null) {
+        clearInterval(refreshCooldownTimerId);
+      }
+      updateRefreshButtonState();
+      refreshCooldownTimerId = setInterval(() => {
+        if (Date.now() >= refreshCooldownUntilMs) {
+          clearInterval(refreshCooldownTimerId);
+          refreshCooldownTimerId = null;
+          refreshCooldownUntilMs = 0;
+        }
+        updateRefreshButtonState();
+      }, 250);
     }
 
     function scheduleNextAutoFetch() {
@@ -2198,7 +2248,14 @@
       }, AUTO_REFRESH_INTERVAL_MS);
     }
 
-    async function fetchLatestSchedule() {
+    async function fetchLatestSchedule(options = {}) {
+      const { isManual = false } = options || {};
+      if (isFetching) return;
+      if (isManual && Date.now() < refreshCooldownUntilMs) return;
+
+      isFetching = true;
+      updateRefreshButtonState();
+
       const statusEl = document.getElementById('drawer-sync-status');
       statusEl.textContent = 'GAS APIから最新枠を取得中...';
       lastFetchAttemptAt = Date.now();
@@ -2248,6 +2305,12 @@
         statusEl.textContent = `最新取得失敗（キャッシュ表示中）: ${errMsg}`;
       } finally {
         clearTimeout(timeoutId);
+        isFetching = false;
+        if (isManual) {
+          startRefreshCooldown(MANUAL_RELOAD_COOLDOWN_MS);
+        } else {
+          updateRefreshButtonState();
+        }
         scheduleNextAutoFetch();
       }
     }
@@ -2418,7 +2481,10 @@
       });
       document.getElementById('btn-close-drawer').addEventListener('click', closeDrawer);
       document.getElementById('drawer-backdrop').addEventListener('click', closeDrawer);
-      document.getElementById('btn-refresh-api').addEventListener('click', fetchLatestSchedule);
+      document.getElementById('btn-refresh-api').addEventListener('click', () => {
+        if (isFetching || Date.now() < refreshCooldownUntilMs) return;
+        fetchLatestSchedule({ isManual: true });
+      });
       document.getElementById('btn-clear-all-slots').addEventListener('click', clearAllSlots);
       document.getElementById('btn-open-all-live').addEventListener('click', openAllLiveStreams);
 
