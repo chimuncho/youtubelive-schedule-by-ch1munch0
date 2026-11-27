@@ -1,4 +1,4 @@
-[推しスケ！＆推しマド！完全版仕様台帳.md](https://github.com/user-attachments/files/35496302/default.md)
+[推しスケ！＆推しマド！統合仕様台帳.md](https://github.com/user-attachments/files/35497106/default.md)
 # 推しスケ！＆推しマド！ 統合仕様台帳（全ステップ完全版）
 
 * **対象プロジェクト**: `youtubelive-schedule-by-ch1munch0`（推しスケ！＆推しマド！）
@@ -8,7 +8,7 @@
   * **フロントエンド**: `index.html`, `oshisuke.html`, `oshimado.html`
   * **Chrome拡張機能 (`oshimado-ss`)**: `manifest.json`, `background.js`, `content.js`
   * **ブックマークレット**: `ブックマークレット.txt`
-* **検証ステータス**: **全ステップ（STEP1〜STEP4）突合完了**
+* **検証ステータス**: **全ステップ（STEP1〜STEP4）突合完了・最終レビュー対応反映済み**
 
 ---
 
@@ -26,6 +26,15 @@
 3. **ポップアップ内チャット折りたたみの非同期判定**:
    * 拡張機能 `content.js` の `closeLiveChatIfOpen()` は、チャット開閉ボタンクリック直後に `collapsed` 属性を同期判定するため、YouTube側のDOM更新が1ティック遅れる場合は `MutationObserver` / 400msポーリングの次サイクルで完了確定します（動作上の支障なし）。
 
+### 設計上の割り切り（レビュー対応見送り・判断記録）
+個人開発（約200チャンネル規模）における運用コストと改修リスクのバランスを考慮し、以下の項目は意図的に現行仕様のままとしています（次回以降のレビュー時の再指摘防止用記録）。
+
+* **ミニ窓の二重起動競合ガード未実装（旧指摘 L-1）**: ローカル拡張機能（`background.js`）との応答は数ミリ秒で完了するため、タイムアウト管理導入によるコード複雑化を避けるため見送り。
+* **その他低優先度項目の現行維持（旧指摘 L-5 残り）**:
+  * `updateChannelDirectory` の GAS 6分実行制限対策（約200チャンネル規模では実行時間に十分な余裕があるため見送り）
+  * フロントキャッシュ読込時の `schemaVersion` 厳密検証（キャッシュキー名自体にバージョン番号を付与して世代分離しているため見送り）
+  * URL長さ制限（300文字）の超過防止ガード、トークンの定数時間比較（タイミング攻撃対策）、およびインラインJS外部ファイル化による厳格CSP対応（現状規模・個人利用環境において実害がなく、改修コストに対してメリットが薄いため見送り）
+
 ---
 
 ## 2. システム統合仕様台帳（Master Contract Sheet）
@@ -41,7 +50,7 @@
 | **旧キャッシュ互換キー** | `'yt_live_schedule_cache_v9'`, `'v8'` | `oshisuke.html`, `oshimado.html` | 読込フォールバックおよび読込直後の `localStorage.removeItem` 移行削除用（`oshisuke.html` / `oshimado.html` 共通） | **実装済み** |
 | **自動更新間隔** | `180000` ms（3分） | `config.js` (`AUTO_REFRESH_INTERVAL_MS`) | `oshisuke.html`, `oshimado.html`（タイマー・タブ復帰時経過判定） | **全箇所一致** |
 | **`New` バッジ表示上限** | `4`（`seenCount <= 4`） | `config.js` (`NEW_BADGE_MAX_SEEN`) / GAS `CONFIG` | `oshisuke.html`, `oshimado.html`, `コード.txt` | **全箇所一致** |
-| **タグ自動折りたたみ閾値** | `localCount < 3`（対象件数3件未満で折りたたみ） | `oshisuke.html`（タグ一覧描画判定） | `oshisuke.html`（`auto` 設定サブタグの初期折りたたみ制御） | **実装済み** |
+| **タグ自動折りたたみ閾値** | `localCount < 3`（対象件数3件未満で折りたたみ）<br>※配信スケジュール画面全体、およびチャンネル一覧でメインタグ選択中の動的サブタグは折りたたみ無効（全件表示） | `oshisuke.html`（`buildAvailableTagLists` / `computeLocalFolded`） | `oshisuke.html`（チャンネル一覧の初期折りたたみ制御） | **実装済み** |
 | **手動登録トークン** | キー名: `'ADMIN_SECRET_TOKEN'` | GAS `ScriptProperties` | `コード.txt` (`doPost` 検証)、`ブックマークレット.txt` (`CFG.TOKEN`) | **実装済み** |
 
 ### 2-2. バックエンド API 仕様（GAS `doGet` / `doPost`）
@@ -71,8 +80,8 @@
 | 画面 / 機能 | 仕様・制御内容 | ステータス |
 | :--- | :--- | :--- |
 | **ポータル (`index.html`)** | `FULL` / `LIVES` のうち `savedAtMs` が新しいキャッシュで0秒初期描画後、`?mode=summary` で上部ステータスストリップ（配信中/予定/Ch数/更新日時/異常警告）を非同期更新。 | **実装済み** |
-| **推しスケ！ (`oshisuke.html`)** | ・2ビュー切替（配信スケジュール / チャンネル一覧 `#channels`）・遅延ロード<br>・2階層タグ（メイン/サブ）の動的抽出＆表示対象件数閾値（`localCount < 3`）による自動折りたたみ<br>・再読込クールダウン（`5000`ms）、異常/鮮度低下（30分）/停止疑い（45分）バッジ表示、イベント委譲による画像エラー処理（CSP親和性）。 | **実装済み** |
-| **推しマド！ (`oshimado.html`)** | ・5レイアウト（`1x2`, `2chat`, `2x2`, `1plus3`, `3x2`）のDOM非破棄CSS Grid切替（`2chat` 下段は `minmax(min(425px, 54%), 1.1fr)` 確保）<br>・縮小レイアウト時の非表示枠自動停止＆ミュート退避、ソロ音声の可視枠自動移譲、チャット非表示時の `iframe` 破棄<br>・ショートカット（`1`〜`6`: ソロ、`M`: 全ミュート、`U`: 全ミュート解除、`C`: チャット、`D`: ドロワー、`F`: 没入）<br>・URL状態同期（`?v=ID1,-,ID2&layout=...&main=1..6`）＆復元時初期全枠ミュート。 | **実装済み** |
+| **推しスケ！ (`oshisuke.html`)** | ・2ビュー切替（配信スケジュール / チャンネル一覧 `#channels`）・通信中切替時の自動遅延フル取得（`pendingForceFull` / `requestFullChannels`）<br>・2階層タグ（メイン/サブ）の動的抽出＆状況別折りたたみ制御（スケジュール画面はメイン・サブ全件展開、チャンネル一覧はメイン未選択時のみ `localCount < 3` 等で折りたたみ・メイン選択時の動的サブタグは全件展開）<br>・再読込クールダウン（`5000`ms）、異常/鮮度低下（30分）/停止疑い（45分）バッジ表示、イベント委譲による画像エラー処理（CSP親和性）。 | **実装済み** |
+| **推しマド！ (`oshimado.html`)** | ・5レイアウト（`1x2`, `2chat`, `2x2`, `1plus3`, `3x2`）のDOM非破棄CSS Grid切替（`2chat` 下段は `minmax(min(425px, 54%), 1.1fr)` 確保）<br>・縮小レイアウト時の非表示枠自動停止＆ミュート退避、ソロ音声の可視枠自動移譲（昇格時のソロ維持ガード付）、チャット非表示時の `iframe` 破棄<br>・手動更新ボタンの通信中ロック＆5秒クールダウン<br>・ショートカット（`1`〜`6`: ソロ、`M`: 全ミュート、`U`: 全ミュート解除、`C`: チャット、`D`: ドロワー、`F`: 没入）<br>・URL状態同期（`?v=ID1,-,ID2&layout=...&main=1..6`）＆復元時初期全枠ミュート。 | **実装済み** |
 
 ### 2-5. Chrome拡張機能（`oshimado-ss` v1.3.2）連携プロトコル仕様
 
@@ -81,8 +90,8 @@
 | **起動ハンドシェイク** | `oshimado.html` ↔ `content.js`（トップフレーム） | `window.postMessage`（`OSHIMADO_EXT_PING` → `OSHIMADO_EXT_READY` `version: '1.3.2'`）<br>検証: `event.source === window && event.origin === OSHIMADO_ORIGIN` | 拡張機能の稼働検知。未導入時は待機なしで即 `window.open` フォールバックへ移行。 | **実装済み** |
 | **高評価ミニ窓制御** | `oshimado.html` → `content.js` → `background.js` | `OSHIMADO_OPEN_WATCH_POPUP_REQ` → `chrome.runtime.sendMessage('OSHIMADO_OPEN_WATCH_POPUP')` → `OSHIMADO_OPEN_WATCH_POPUP_RES`<br>検証: `sender.origin` / `sender.url` プレフィックス / `WATCH_URL_RE` | `chrome.storage.session` に `popupWindowId` / `popupTabId` を永続保持し、SWスリープ後も同一ポップアップウィンドウのURL更新・フォーカスで再利用。 | **実装済み** |
 | **ミニ窓限定自動制御** | `content.js`（`#oshimado_popup` トップフレーム） | URLハッシュ `#oshimado_popup` または `sessionStorage.oshimado_is_popup === '1'` | 通常タブには干渉せず、操作前（最大6秒）の `<video>.pause()`（クリック/`Space`/`K`で解除）および `ytd-live-chat-frame` の自動折りたたみを実行。 | **実装済み** |
-| **原寸スクショ撮影** | `oshimado.html` ↔ `content.js`（埋め込みフレーム） | `iframe.contentWindow.postMessage`（`OSHIMADO_CAPTURE_REQUEST` → `OSHIMADO_CAPTURE_RESULT`）<br>検証: 送信側は `event.source === pending.iframeWindow`、受信側は `event.source === window.parent && event.origin === OSHIMADO_ORIGIN` | `<video>` を原寸 `<canvas>` に描画し、`推しマド_<枠>_<ラベル>_<日時>.png`（最大80文字）としてダウンロード保存し結果を返却。 | **実装済み** |
-| **埋め込み待機UI補正** | `content.js`（埋め込みフレーム） | `window.top !== window.self` に `style#oshimado-embed-ui-fix` を注入 | 待機サムネイルの `background-size: contain` 化および「通知を受け取る」バーの横並び・狭幅（`<=520px`）コンパクト化。 | **実装済み** |
+| **原寸スクショ撮影** | `oshimado.html` ↔ `content.js`（埋め込みフレーム） | `iframe.contentWindow.postMessage`（`OSHIMADO_CAPTURE_REQUEST` → `OSHIMADO_CAPTURE_RESULT`）<br>検証: 送信側は `event.source === pending.iframeWindow`、受信側は `event.source === window.parent && event.origin === OSHIMADO_ORIGIN` | `<video>` を原寸 `<canvas>` に描画し、`推しマド_<枠>_<ラベル>_<日時>.png`（固定長確保＋最大80文字）としてダウンロード保存し結果を返却。 | **実装済み** |
+| **埋め込み待機UI補正** | `content.js`（埋め込みフレーム） | `window.top !== window.self && location.ancestorOrigins[0] === OSHIMADO_ORIGIN` に `style#oshimado-embed-ui-fix` を注入 | 待機サムネイルの `background-size: contain` 化および「通知を受け取る」バーの横並び・狭幅（`<=520px`）コンパクト化。 | **実装済み** |
 
 ---
 
