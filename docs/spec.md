@@ -1,5 +1,5 @@
 [推しスケ！＆推しマド！統合仕様台帳.md](https://github.com/user-attachments/files/35497106/default.md)
-# 推しスケ！＆推しマド！ 統合仕様台帳（全ステップ完全版）
+# 推しスケ！＆推しマド！ 統合仕様台帳
 
 * **対象プロジェクト**: `youtubelive-schedule-by-ch1munch0`（推しスケ！＆推しマド！）
 * **対象ファイル一覧**:
