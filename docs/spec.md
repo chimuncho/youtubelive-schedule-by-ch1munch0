@@ -83,11 +83,11 @@
 | **推しスケ！ (`oshisuke.html`)** | ・2ビュー切替（配信スケジュール / チャンネル一覧 `#channels`）・通信中切替時の自動遅延フル取得（`pendingForceFull` / `requestFullChannels`）<br>・2階層タグ（メイン/サブ）の動的抽出＆状況別折りたたみ制御（スケジュール画面はメイン・サブ全件展開、チャンネル一覧はメイン未選択時のみ `localCount < 3` 等で折りたたみ・メイン選択時の動的サブタグは全件展開）<br>・再読込クールダウン（`5000`ms）、異常/鮮度低下（30分）/停止疑い（45分）バッジ表示、イベント委譲による画像エラー処理（CSP親和性）。 | **実装済み** |
 | **推しマド！ (`oshimado.html`)** | ・5レイアウト（`1x2`, `2chat`, `2x2`, `1plus3`, `3x2`）のDOM非破棄CSS Grid切替（`2chat` 下段は `minmax(min(425px, 54%), 1.1fr)` 確保）<br>・縮小レイアウト時の非表示枠自動停止＆ミュート退避、ソロ音声の可視枠自動移譲（昇格時のソロ維持ガード付）、チャット非表示時の `iframe` 破棄<br>・手動更新ボタンの通信中ロック＆5秒クールダウン<br>・ショートカット（`1`〜`6`: ソロ、`M`: 全ミュート、`U`: 全ミュート解除、`C`: チャット、`D`: ドロワー、`F`: 没入）<br>・URL状態同期（`?v=ID1,-,ID2&layout=...&main=1..6`）＆復元時初期全枠ミュート。 | **実装済み** |
 
-### 2-5. Chrome拡張機能（`oshimado-ss` v1.3.2）連携プロトコル仕様
+### 2-5. Chrome拡張機能（`oshimado-ss` v1.3.3）連携プロトコル仕様
 
 | 連携機能 | 送信元 → 受信先 | メッセージ型 / チャネル / 検証ルール | 処理内容 | ステータス |
 | :--- | :--- | :--- | :--- | :--- |
-| **起動ハンドシェイク** | `oshimado.html` ↔ `content.js`（トップフレーム） | `window.postMessage`（`OSHIMADO_EXT_PING` → `OSHIMADO_EXT_READY` `version: '1.3.2'`）<br>検証: `event.source === window && event.origin === OSHIMADO_ORIGIN` | 拡張機能の稼働検知。未導入時は待機なしで即 `window.open` フォールバックへ移行。 | **実装済み** |
+| **起動ハンドシェイク** | `oshimado.html` ↔ `content.js`（トップフレーム） | `window.postMessage`（`OSHIMADO_EXT_PING` → `OSHIMADO_EXT_READY` `version: '1.3.3'`）<br>検証: `event.source === window && event.origin === OSHIMADO_ORIGIN` | 拡張機能の稼働検知。未導入時は待機なしで即 `window.open` フォールバックへ移行。 | **実装済み** |
 | **高評価ミニ窓制御** | `oshimado.html` → `content.js` → `background.js` | `OSHIMADO_OPEN_WATCH_POPUP_REQ` → `chrome.runtime.sendMessage('OSHIMADO_OPEN_WATCH_POPUP')` → `OSHIMADO_OPEN_WATCH_POPUP_RES`<br>検証: `sender.origin` / `sender.url` プレフィックス / `WATCH_URL_RE` | `chrome.storage.session` に `popupWindowId` / `popupTabId` を永続保持し、SWスリープ後も同一ポップアップウィンドウのURL更新・フォーカスで再利用。 | **実装済み** |
 | **ミニ窓限定自動制御** | `content.js`（`#oshimado_popup` トップフレーム） | URLハッシュ `#oshimado_popup` または `sessionStorage.oshimado_is_popup === '1'` | 通常タブには干渉せず、操作前（最大6秒）の `<video>.pause()`（クリック/`Space`/`K`で解除）および `ytd-live-chat-frame` の自動折りたたみを実行。 | **実装済み** |
 | **原寸スクショ撮影** | `oshimado.html` ↔ `content.js`（埋め込みフレーム） | `iframe.contentWindow.postMessage`（`OSHIMADO_CAPTURE_REQUEST` → `OSHIMADO_CAPTURE_RESULT`）<br>検証: 送信側は `event.source === pending.iframeWindow`、受信側は `event.source === window.parent && event.origin === OSHIMADO_ORIGIN` | `<video>` を原寸 `<canvas>` に描画し、`推しマド_<枠>_<ラベル>_<日時>.png`（固定長確保＋最大80文字）としてダウンロード保存し結果を返却。 | **実装済み** |
