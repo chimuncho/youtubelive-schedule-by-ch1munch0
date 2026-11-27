@@ -1161,6 +1161,7 @@
     };
     let hasRenderedData = false;
     let hasLoadedFullChannels = false;
+    let pendingForceFull = false;
     let savedAtMs = 0;
     let lastFetchAttemptAt = 0;
     let lastSuccessfulFetchAt = 0;
@@ -1254,7 +1255,6 @@
       return order.map(name => ({
         name: name,
         group: 'sub',
-        count: 4,
         visibility: 'auto',
         isFolded: false
       }));
@@ -1367,6 +1367,15 @@
       badgesEl.innerHTML = pills.join('');
     }
 
+    function requestFullChannels() {
+      if (hasLoadedFullChannels) return;
+      if (isFetching) {
+        pendingForceFull = true;
+        return;
+      }
+      fetchScheduleData({ isBackground: true, forceFull: true });
+    }
+
     function switchView(view) {
       if (view !== 'schedule' && view !== 'channels') return;
       activeView = view;
@@ -1382,8 +1391,8 @@
 
       render();
 
-      if (view === 'channels' && !hasLoadedFullChannels && !isFetching) {
-        fetchScheduleData({ isBackground: true, forceFull: true });
+      if (view === 'channels') {
+        requestFullChannels();
       }
     }
 
@@ -1624,8 +1633,8 @@
      */
     function computeLocalFolded(visibility, localCount) {
       const vis = String(visibility || 'auto').toLowerCase();
-      if (vis === 'show' || vis === 'visible' || vis === 'always') return false;
-      if (vis === 'fold' || vis === 'hide' || vis === 'hidden') return true;
+      if (vis === 'always') return false;
+      if (vis === 'fold') return true;
       return localCount < 3;
     }
 
@@ -2076,6 +2085,11 @@
       const contentEl = document.getElementById('content');
       contentEl.innerHTML = '';
 
+      if (allChannels.length === 0 && !hasLoadedFullChannels) {
+        contentEl.innerHTML = '<div class="empty-state">チャンネル一覧を読み込み中…</div>';
+        return;
+      }
+
       if (filteredChannels.length === 0) {
         contentEl.innerHTML = `
           <div class="empty-state">
@@ -2294,10 +2308,7 @@
     }
 
     async function fetchScheduleData(options = {}) {
-      const normalizedOpts = (typeof options === 'boolean')
-        ? { isBackground: options }
-        : (options || {});
-      const { isBackground = false, forceFull = false, isManual = false } = normalizedOpts;
+      const { isBackground = false, forceFull = false, isManual = false } = options || {};
 
       if (isFetching) return;
       if (isManual && Date.now() < reloadCooldownUntilMs) return;
@@ -2354,7 +2365,12 @@
         } else {
           updateReloadButtonState();
         }
-        scheduleNextAutoFetch();
+        if (pendingForceFull && !hasLoadedFullChannels) {
+          pendingForceFull = false;
+          fetchScheduleData({ isBackground: true, forceFull: true });
+        } else {
+          scheduleNextAutoFetch();
+        }
       }
     }
 
@@ -2474,8 +2490,8 @@
         if (target !== activeView) {
           activeView = target;
           render();
-          if (target === 'channels' && !hasLoadedFullChannels && !isFetching) {
-            fetchScheduleData({ isBackground: true, forceFull: true });
+          if (target === 'channels') {
+            requestFullChannels();
           }
         }
       });
