@@ -128,7 +128,7 @@ flowchart TD
    - アクセスできるユーザー：**全員**（GitHub Pages とブックマークレットからのリクエストを受けるため）
 2. 発行された URL（`https://script.google.com/macros/s/<DEPLOYMENT_ID>/exec`）を `config.js` の `GAS_URL` に設定します。
 3. `config.js` と `index.html`・`oshisuke.html`・`oshimado.html` を、GitHub Pages の同じディレクトリに配置します。
-4. 各 HTML には、`config.js` の読み込みに失敗したときのフォールバック値が入っています。`GAS_URL` を変えた場合は、その値も合わせて更新してください（詳細は[統合仕様台帳.md](./統合仕様台帳.md) の「運用ルール」）。
+4. 各 HTML には、`config.js` の読み込みに失敗したときのフォールバック値が入っています。`GAS_URL` を変えた場合は、その値も合わせて更新してください（詳細は[統合仕様台帳.md](./docs/統合仕様台帳.md) の「運用ルール」）。
 
 ### 6-4. 定期実行トリガーを設定する
 
