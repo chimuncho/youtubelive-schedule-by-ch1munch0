@@ -1,5 +1,5 @@
 /**
- * 推しスケ！ / 推しマド！ 共通設定（config.js）
+ * 推しスケ！ ＆ 推しマド！ 共通設定（config.js）
  */
 window.OSHISUKE_CONFIG = Object.freeze({
   GAS_URL: 'https://script.google.com/macros/s/AKfycbzKEjdp1EPCZ_8jCAvaGfTdOA9kCVBnau0XdnR9-uuj7kYlAbqp-jRQrAouMQnUSqPs/exec',
