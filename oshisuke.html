@@ -1638,7 +1638,7 @@
       const vis = String(visibility || 'auto').toLowerCase();
       if (vis === 'always') return false;
       if (vis === 'fold') return true;
-      return localCount < 3;
+      return localCount < 4;
     }
 
     function buildAvailableTagLists(items, activeMainTag, options = {}) {
